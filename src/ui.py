@@ -1,50 +1,92 @@
 import streamlit as st
 import requests
+import json
+import pandas as pd
 
-st.set_page_config(page_title="TechDocAI", layout="wide")
-st.title("TechDocAI Assistant")
+# Constants
+API_URL = "http://localhost:8000/api"
 
-# Sidebar for Ingestion
+st.set_page_config(page_title="TechDocAI Workbench", layout="wide", page_icon="🤖")
+
+st.title("🤖 TechDocAI Verification Workbench")
+st.markdown("Use this interface to verify the **Ingestion Pipeline** and **Hybrid Search** logic.")
+
+# Custom CSS
+st.markdown("""
+<style>
+    .stButton>button { width: 100%; border-radius: 5px; }
+    .reportview-container { background: #f0f2f6; }
+    div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; font-weight: bold; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- SIDEBAR: INGESTION ---
 with st.sidebar:
-    st.header("Upload Document")
-    uploaded_file = st.file_uploader("Choose a file", type=["pdf", "txt", "md"])
-    if uploaded_file is not None:
-        if st.button("Ingest"):
-            files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-            res = requests.post("http://localhost:8000/api/ingest/", files=files)
-            if res.status_code == 200:
-                st.success("Ingestion Complete!")
-            else:
-                st.error(f"Error: {res.text}")
-
-# Main Chat Interface
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-if prompt := st.chat_input("Ask a technical question..."):
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Get answer from API
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            try:
-                res = requests.post("http://localhost:8000/api/ask/", json={"question": prompt})
-                if res.status_code == 200:
-                    answer = res.json()["answer"]
-                    st.markdown(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.header("📂 Document Ingestion")
+    st.info("Upload PDF, TXT, or MD files to add them to the Vector Database.")
+    
+    uploaded_file = st.file_uploader("Select Document", type=["pdf", "txt", "md"])
+    
+    if uploaded_file:
+        if st.button("🚀 Run Ingestion Pipeline"):
+            with st.spinner("Uploading & Processing..."):
+                try:
+                    files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
+                    res = requests.post(f"{API_URL}/ingest/", files=files)
                     
-                    # Show sources (Optional)
-                    with st.expander("Sources"):
-                         st.write(res.json().get("sources", []))
+                    if res.status_code == 200:
+                        data = res.json()
+                        st.success("✅ Ingestion Successful!")
+                        st.json(data)
+                    else:
+                        st.error(f"❌ Error {res.status_code}: {res.text}")
+                except Exception as e:
+                    st.error(f"Connection Failed: {e}")
+
+    st.markdown("---")
+    st.header("⚙️ Database Controls")
+    if st.button("🗑️ Reset Database (DANGER)"):
+        st.warning("Feature not connected to API yet for safety.")
+
+# --- MAIN CONTENT: SEARCH VERIFICATION ---
+st.subheader("🔍 Hybrid Search Verification")
+
+col1, col2 = st.columns([3, 1])
+with col1:
+    query = st.text_input("Enter a technical query:", placeholder="e.g., How does binary search work?")
+with col2:
+    k_val = st.number_input("Top K", min_value=1, max_value=20, value=5)
+
+if query:
+    if st.button("Search") or query:
+        with st.spinner("Searching..."):
+            try:
+                payload = {"question": query, "k": k_val}
+                res = requests.post(f"{API_URL}/search/", json=payload)
+                
+                if res.status_code == 200:
+                    results = res.json()
+                    answer = results.get("answer", "No answer generated.")
+                    hits = results.get("results", [])
+                    
+                    st.success("✅ Generated Answer:")
+                    st.markdown(f"### {answer}")
+                    st.markdown("---")
+                    
+                    st.subheader(f"📚 Sources ({len(hits)} chunks used)")
+                    
+                    for i, doc in enumerate(hits):
+                        score_display = "" # Score is fused, might not display directly easily without change
+                        with st.expander(f"Result #{i+1} | {doc['domain'].upper()} | {doc['metadata'].get('source', 'Unknown')}"):
+                            st.markdown(f"**Content Snippet:**")
+                            st.code(doc['content'], language="text")
+                            st.markdown("**Metadata:**")
+                            st.json(doc['metadata'])
                 else:
                     st.error(f"API Error: {res.text}")
             except Exception as e:
-                st.error(f"Connection Error: {e}")
+                st.error(f"Failed to connect to backend: {e}")
+                st.info("Make sure `src/main.py` is running!")
+
+st.markdown("---")
+st.caption("TechDocAI Verification UI")

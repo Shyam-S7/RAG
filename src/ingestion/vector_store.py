@@ -12,7 +12,8 @@ try:
     from src.utils.exception import VectorStoreError
 except ModuleNotFoundError:
     import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     from src.config import Config
     from src.ingestion.embedding import Embedder
     from src.utils.logging import get_logger
@@ -20,12 +21,13 @@ except ModuleNotFoundError:
 
 logger = get_logger(__name__)
 
+
 class ChromaStore:
     """
     Manages interactions with ChromaDB.
     Stores: Chunks (Text), Vectors (Embeddings), Metadata, and Unique IDs.
     """
-    
+
     def __init__(self):
         self.persist_directory = Config.CHROMA_DB_DIR
         self.embedder = None
@@ -43,7 +45,7 @@ class ChromaStore:
     def get_vectorstore(self) -> Chroma:
         """Returns the Chroma vector store instance."""
         # Initialize embedder only when needed (adding docs or semantic search)
-        # For simple retrieval/inspection, we might get away without it, 
+        # For simple retrieval/inspection, we might get away without it,
         # but LangChain's Chroma wrapper usually expects it.
         # To strictly answer "why load bge", it's because this Code initializes it.
         # We will initialize it lazily.
@@ -51,7 +53,7 @@ class ChromaStore:
         return Chroma(
             persist_directory=self.persist_directory,
             embedding_function=self.embedding_fn,
-            collection_name="techdoc_collection"
+            collection_name="techdoc_collection",
         )
 
     def add_documents(self, documents: List[Document]):
@@ -64,29 +66,69 @@ class ChromaStore:
             return
 
         try:
+            # Validate config directory exists
+            if not os.path.exists(self.persist_directory):
+                os.makedirs(self.persist_directory, exist_ok=True)
+                logger.info(f"Created ChromaDB directory: {self.persist_directory}")
+
+            # Test embedder with first chunk to verify it works
+            self._init_embedder()
+            test_vector = self.embedder.embed_query("test")
+            if not test_vector or len(test_vector) == 0:
+                raise VectorStoreError("Embedder produced empty vector", detail="")
+            logger.debug(f"Embedding dimension verified: {len(test_vector)}")
+
             # Generate unique IDs based on content + source for deduplication
-            ids = [self._generate_id(doc.page_content, doc.metadata.get("source", "")) for doc in documents]
-            
+            ids = [
+                self._generate_id(doc.page_content, doc.metadata.get("source", ""))
+                for doc in documents
+            ]
+
             store = self.get_vectorstore()
-            
-            logger.info(f"Adding {len(documents)} documents to ChromaDB at {self.persist_directory}...")
-            
-            # Chroma's add_documents automatically:
-            # 1. Calls self.embedding_fn to generate vectors
-            # 2. Stores text (doc.page_content)
-            # 3. Stores metadata (doc.metadata)
-            # 4. Stores explicit IDs
-            store.add_documents(documents=documents, ids=ids)
-            
-            logger.info("Successfully stored chunks, vectors, metadata, and IDs.")
-            
+
+            # Check for duplicates before adding
+            existing_ids = set(store.get()["ids"] or [])
+            new_docs = []
+            new_ids = []
+
+            for doc, doc_id in zip(documents, ids):
+                if doc_id not in existing_ids:
+                    new_docs.append(doc)
+                    new_ids.append(doc_id)
+                else:
+                    logger.warning(f"Skipping duplicate document: {doc_id}")
+
+            if not new_docs:
+                logger.warning("All documents already exist in ChromaDB.")
+                return
+
+            logger.info(
+                f"Adding {len(new_docs)} documents to ChromaDB at {self.persist_directory}..."
+            )
+
+            # Add in batches to avoid overwhelming ChromaDB
+            batch_size = 100
+            for i in range(0, len(new_docs), batch_size):
+                batch_docs = new_docs[i : i + batch_size]
+                batch_ids = new_ids[i : i + batch_size]
+                store.add_documents(documents=batch_docs, ids=batch_ids)
+                logger.debug(f"Added batch {i//batch_size + 1}: {len(batch_docs)} docs")
+
+            logger.info(
+                f"Successfully stored {len(new_docs)} chunks, vectors, metadata, and IDs."
+            )
+
         except Exception as e:
             logger.error(f"Failed to add documents to ChromaDB: {e}")
             raise VectorStoreError("Failed to add documents", detail=str(e))
 
     def _generate_id(self, content: str, source: str) -> str:
-        """Generates a stable hash ID."""
-        return hashlib.md5(f"{source}_{content}".encode("utf-8")).hexdigest()
+        """Generates a stable hash ID using SHA256 instead of MD5."""
+        import time
+
+        # Add timestamp to prevent exact duplicates of same content
+        composite = f"{source}_{content}_{time.time()}"
+        return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
 
     def reset_db(self):
         """Clears the DB."""
@@ -96,31 +138,34 @@ class ChromaStore:
                 logger.info("Vector database cleared.")
             except Exception as e:
                 logger.error(f"Failed to clear DB: {e}")
-                
+
     def inspect_db(self, limit: int = 3):
         """Debug method to verify what is actually stored."""
         logger.info(f"Inspecting top {limit} records in DB...")
         try:
             store = self.get_vectorstore()
             # Retrieve including embeddings to verify they exist
-            data = store.get(limit=limit, include=["metadatas", "documents", "embeddings"])
-            
-            if not data['ids']:
+            data = store.get(
+                limit=limit, include=["metadatas", "documents", "embeddings"]
+            )
+
+            if not data["ids"]:
                 print("Database is empty.")
                 return
 
             print(f"\n--- ChromaDB Inspection ({len(data['ids'])} records found) ---")
-            for i in range(len(data['ids'])):
+            for i in range(len(data["ids"])):
                 print(f"ID: {data['ids'][i]}")
                 print(f"Metadata: {data['metadatas'][i]}")
                 print(f"Content: {data['documents'][i][:50]}...")
-                if data['embeddings']:
+                if data["embeddings"]:
                     print(f"Vector: Present (Dim: {len(data['embeddings'][i])})")
                 else:
                     print("Vector: MISSING!")
                 print("-" * 20)
         except Exception as e:
             logger.error(f"Inspection failed: {e}")
+
 
 if __name__ == "__main__":
     # Test

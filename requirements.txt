@@ -17,3 +17,4 @@ numpy
 scikit-learn
 unstructured
 markdown
+python-multipart

@@ -1,30 +1,54 @@
-class TechDocException(Exception):
-    """Base exception for TechDocAI application."""
-    def __init__(self, message: str, detail: str = None):
-        self.message = message
-        self.detail = detail
-        super().__init__(self.message)
+import sys
+import logging
 
-class IngestionError(TechDocException):
-    """Raised when data ingestion fails."""
+logger = logging.getLogger(__name__)
+
+
+def error_message_detail(error, error_detail: sys):
+    """Format error message with file name and line number."""
+    _, _, exc_tb = error_detail.exc_info()
+    file_name = exc_tb.tb_frame.f_code.co_filename
+
+    error_message = "Error occured in python script name [{0}] line number [{1}] error message [{2}]".format(
+        file_name, exc_tb.tb_lineno, str(error)
+    )
+
+    return error_message
+
+
+class CustomException(Exception):
+    """Custom exception with detailed error information."""
+
+    def __init__(self, error_message, error_detail: sys):
+        super().__init__(error_message)
+        self.error_message = error_message_detail(
+            error_message, error_detail=error_detail
+        )
+
+    def __str__(self):
+        return self.error_message
+
+
+# Add specific exceptions for RAG pipeline
+class IngestionError(CustomException):
+    """Exception raised during document ingestion."""
+
     pass
 
-class EmbeddingError(TechDocException):
-    """Raised when embedding generation fails."""
+
+class EmbeddingError(CustomException):
+    """Exception raised during embedding generation."""
+
     pass
 
-class VectorStoreError(TechDocException):
-    """Raised when ChromaDB operations fail."""
+
+class VectorStoreError(CustomException):
+    """Exception raised during vector store operations."""
+
     pass
 
-class RetrievalError(TechDocException):
-    """Raised when search returns no results or fails."""
-    pass
 
-class GenerationError(TechDocException):
-    """Raised when LLM fails to generate response."""
-    pass
+class RetrievalError(CustomException):
+    """Exception raised during retrieval operations."""
 
-class ConfigurationError(TechDocException):
-    """Raised when config/environment variables are missing."""
     pass

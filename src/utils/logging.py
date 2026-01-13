@@ -1,27 +1,33 @@
 import logging
-import sys
-from logging.handlers import RotatingFileHandler
 import os
+from datetime import datetime
 
 # Create logs directory
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILE_PATH = os.path.join(LOG_DIR, "app.log")
+logs_dir = os.path.join(os.getcwd(), "logs")
+os.makedirs(logs_dir, exist_ok=True)
 
-# Logging Configuration
+# Create log file with timestamp
+LOG_FILE = f"{datetime.now().strftime('%m_%d_%Y_%H_%M_%S')}.log"
+LOG_FILE_PATH = os.path.join(logs_dir, LOG_FILE)
+
+# Configure logging
 logging.basicConfig(
+    filename=LOG_FILE_PATH,
+    format="[ %(asctime)s ] %(lineno)d %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        RotatingFileHandler(LOG_FILE_PATH, maxBytes=10*1024*1024, backupCount=5), # 10MB file size
-        logging.StreamHandler(sys.stdout)
-    ]
 )
 
-def get_logger(name: str):
+# Also log to console
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+formatter = logging.Formatter(
+    "[ %(asctime)s ] %(lineno)d %(name)s - %(levelname)s - %(message)s"
+)
+console_handler.setFormatter(formatter)
+logging.getLogger().addHandler(console_handler)
+
+
+def get_logger(name: str) -> logging.Logger:
     """Returns a configured logger instance."""
     return logging.getLogger(name)
-
-if __name__ == "__main__":
-    logger = get_logger("TestLogger")
-    logger.info("Logging system initialized.")

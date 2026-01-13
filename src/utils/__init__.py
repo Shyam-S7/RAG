@@ -1,5 +1,15 @@
-from .logging import get_logger
 from .exception import (
-    TechDocException, IngestionError, EmbeddingError, 
-    VectorStoreError, RetrievalError, GenerationError, ConfigurationError
+    CustomException,
+    IngestionError,
+    EmbeddingError,
+    VectorStoreError,
+    RetrievalError,
 )
+
+__all__ = [
+    "CustomException",
+    "IngestionError",
+    "EmbeddingError",
+    "VectorStoreError",
+    "RetrievalError",
+]

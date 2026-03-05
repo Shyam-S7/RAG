@@ -15,8 +15,6 @@ except ModuleNotFoundError:
     from src.utils.logging import get_logger
     from src.utils.exception import EmbeddingError
 
-logger = get_logger(__name__)
-
 
 class Embedder:
     """Manages the Embedding Model (BGE-Small) with GPU support."""

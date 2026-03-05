@@ -285,31 +285,7 @@ class Preprocessor:
 
         except Exception as e:
             logger.error(f"Critical error processing file {file_path}: {e}")
-            raise IngestionError(f"Failed to process file {file_path}", detail=str(e))
-
-
-if __name__ == "__main__":
-    # Test Block
-    print("Testing Preprocessor...")
-
-    # 1. Create a dummy file
-    test_dir = "d:/rag/data/test"
-    os.makedirs(test_dir, exist_ok=True)
-    test_file = os.path.join(test_dir, "test_algo.txt")
-
-    with open(test_file, "w") as f:
-        f.write("fine tune")
-
-    # 2. Run Processor
-    processor = Preprocessor()
-    try:
-        chunks = processor.process_file(test_file)
-        print(f"\nSuccessfully processed '{test_file}'.")
-        print(f"Detected Domain: {chunks[0].metadata['domain']}")
-        print(f"Total Chunks: {len(chunks)}")
-        print(f"Sample Chunk Content: {chunks[0].page_content}")
-    except Exception as e:
-        print(f"Error: {e}")
+            raise IngestionError(f"Failed to process file {file_path}: {str(e)}", sys)
 
 
 if __name__ == "__main__":

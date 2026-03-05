@@ -102,12 +102,65 @@ class Embedder:
             return embeddings
         except Exception as e:
             logger.error(f"Failed to embed documents: {e}")
-            raise EmbeddingError("Document embedding failed", detail=str(e))
+            raise EmbeddingError("Document embedding failed", sys)
 
+
+# // Add at the end of the file, AFTER the Embedder class definition
 
 if __name__ == "__main__":
-    # Test Block
-    embedder = Embedder()
-    vector = embedder.embed_query("What is RAG?")
-    print(f"Embedding Success! Vector Dimension: {len(vector)}")
-    print(vector)
+    print("=" * 60)
+    print("TESTING EMBEDDER")
+    print("=" * 60)
+
+    try:
+        # Initialize embedder
+        embedder = Embedder()
+        print(f"\n✅ Embedder initialized")
+        print(f"📱 Device: {embedder.device}")
+        print(f"🎯 Model: {embedder.model_name}")
+
+        # Test 1: Single query embedding
+        print(f"\n{'='*60}")
+        print("Test 1: Single Query Embedding")
+        print(f"{'='*60}")
+        query = "What is machine learning?"
+        vector = embedder.embed_query(query)
+        print(f"✅ Query embedded successfully")
+        print(f"📝 Query: '{query}'")
+        print(f"📊 Vector dimension: {len(vector)}")
+        print(f"🔢 First 5 values: {vector[:5]}")
+
+        # Test 2: Batch embedding
+        print(f"\n{'='*60}")
+        print("Test 2: Batch Documents Embedding")
+        print(f"{'='*60}")
+        texts = [
+            "Python is a programming language",
+            "Machine learning uses neural networks",
+            "Data science analyzes large datasets",
+        ]
+        vectors = embedder.embed_documents(texts)
+        print(f"✅ Batch embedding successful")
+        print(f"📦 Total documents: {len(vectors)}")
+        print(f"📊 Vector dimension: {len(vectors[0])}")
+        print(
+            f"✔️  All vectors have same dimension: {len(set(len(v) for v in vectors)) == 1}"
+        )
+
+        # Test 3: Embedding dimension
+        print(f"\n{'='*60}")
+        print("Test 3: Embedding Dimension")
+        print(f"{'='*60}")
+        dim = embedder.get_embedding_dimension()
+        print(f"✅ Embedding dimension retrieved")
+        print(f"📊 Dimension: {dim}")
+
+        print(f"\n{'='*60}")
+        print("✅ EMBEDDER TESTING COMPLETE")
+        print(f"{'='*60}")
+
+    except Exception as e:
+        print(f"❌ Embedder Error: {e}")
+        import traceback
+
+        traceback.print_exc()

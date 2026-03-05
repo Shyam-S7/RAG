@@ -40,7 +40,7 @@ class HybridSearch:
             logger.info("HybridSearch initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize HybridSearch: {e}")
-            raise RetrievalError("Hybrid Search Init Failed", detail=str(e))
+            raise RetrievalError(f"Hybrid Search Init Failed: {str(e)}", sys)
 
     def refresh(self):
         """Refreshes the BM25 index after new documents are ingested."""
@@ -155,7 +155,7 @@ class HybridSearch:
 
         except Exception as e:
             logger.error(f"Search failed: {e}")
-            raise RetrievalError(f"Search failed for query '{query}'", detail=str(e))
+            raise RetrievalError(f"Search failed for query '{query}': {str(e)}", sys)
 
     def _rrf_fusion(
         self,

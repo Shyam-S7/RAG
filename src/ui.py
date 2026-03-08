@@ -1,92 +1,110 @@
 import streamlit as st
 import requests
-import json
-import pandas as pd
+import os
+import uuid
 
-# Constants
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="TechDocAI",
+    page_icon="🧠",
+    layout="centered"
+)
+
 API_URL = "http://localhost:8000/api"
 
-st.set_page_config(page_title="TechDocAI Workbench", layout="wide", page_icon="🤖")
+# --- UI HEADER ---
+st.title("🧠 TechDocAI")
+st.markdown("*Your Production-Grade RAG Assistant*")
+st.divider()
 
-st.title("🤖 TechDocAI Verification Workbench")
-st.markdown("Use this interface to verify the **Ingestion Pipeline** and **Hybrid Search** logic.")
+# --- SESSION STATE INITIALIZATION ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
 
-# Custom CSS
-st.markdown("""
-<style>
-    .stButton>button { width: 100%; border-radius: 5px; }
-    .reportview-container { background: #f0f2f6; }
-    div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- SIDEBAR: INGESTION ---
+# --- SIDEBAR: DOCUMENT INGESTION ---
 with st.sidebar:
-    st.header("📂 Document Ingestion")
-    st.info("Upload PDF, TXT, or MD files to add them to the Vector Database.")
+    st.header("📂 Ingestion")
+    st.info("Upload PDF, TXT, or MD files to build your knowledge base.")
     
-    uploaded_file = st.file_uploader("Select Document", type=["pdf", "txt", "md"])
+    uploaded_file = st.file_uploader("Choose a file", type=["pdf", "txt", "md"])
     
-    if uploaded_file:
-        if st.button("🚀 Run Ingestion Pipeline"):
-            with st.spinner("Uploading & Processing..."):
-                try:
-                    files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-                    res = requests.post(f"{API_URL}/ingest/", files=files)
-                    
-                    if res.status_code == 200:
-                        data = res.json()
-                        st.success("✅ Ingestion Successful!")
-                        st.json(data)
-                    else:
-                        st.error(f"❌ Error {res.status_code}: {res.text}")
-                except Exception as e:
-                    st.error(f"Connection Failed: {e}")
+    if uploaded_file and st.button("🚀 Process Document", use_container_width=True):
+        with st.spinner("Processing..."):
+            try:
+                files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
+                res = requests.post(f"{API_URL}/ingest/", files=files)
+                if res.status_code == 200:
+                    st.success(f"Successfully indexed: {uploaded_file.name}")
+                else:
+                    st.error(f"Error: {res.json().get('detail', 'Unknown error')}")
+            except Exception as e:
+                st.error(f"Connection Failed: {e}")
 
-    st.markdown("---")
-    st.header("⚙️ Database Controls")
-    if st.button("🗑️ Reset Database (DANGER)"):
-        st.warning("Feature not connected to API yet for safety.")
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.session_id = str(uuid.uuid4())
+        st.rerun()
 
-# --- MAIN CONTENT: SEARCH VERIFICATION ---
-st.subheader("🔍 Hybrid Search Verification")
+    st.divider()
+    st.caption("Powered by Groq, ChromaDB & BGE")
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    query = st.text_input("Enter a technical query:", placeholder="e.g., How does binary search work?")
-with col2:
-    k_val = st.number_input("Top K", min_value=1, max_value=20, value=5)
+# --- MAIN: CHAT INTERFACE ---
+# Display previous messages
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+        if "sources" in message:
+            with st.expander("📚 View Sources"):
+                for i, src in enumerate(message["sources"]):
+                    st.markdown(f"**Source {i+1}** ({src['domain']})")
+                    st.caption(src['content'][:200] + "...")
+                    st.divider()
+
+query = st.chat_input("Ask a technical question...")
 
 if query:
-    if st.button("Search") or query:
-        with st.spinner("Searching..."):
+    # 1. Add and display user message
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    # 2. Get Response from Backend
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
             try:
-                payload = {"question": query, "k": k_val}
+                payload = {
+                    "question": query, 
+                    "k": 5,
+                    "session_id": st.session_state.session_id
+                }
                 res = requests.post(f"{API_URL}/search/", json=payload)
                 
                 if res.status_code == 200:
-                    results = res.json()
-                    answer = results.get("answer", "No answer generated.")
-                    hits = results.get("results", [])
+                    data = res.json()
+                    answer = data.get("answer")
+                    sources = data.get("results", [])
+
+                    # 3. Display Answer
+                    st.markdown(answer)
                     
-                    st.success("✅ Generated Answer:")
-                    st.markdown(f"### {answer}")
-                    st.markdown("---")
+                    # 4. Save and Show Sources
+                    if sources:
+                        with st.expander("📚 View Sources"):
+                            for i, src in enumerate(sources):
+                                st.markdown(f"**Source {i+1}** ({src['domain']})")
+                                st.caption(src['content'][:200] + "...")
+                                st.divider()
                     
-                    st.subheader(f"📚 Sources ({len(hits)} chunks used)")
-                    
-                    for i, doc in enumerate(hits):
-                        score_display = "" # Score is fused, might not display directly easily without change
-                        with st.expander(f"Result #{i+1} | {doc['domain'].upper()} | {doc['metadata'].get('source', 'Unknown')}"):
-                            st.markdown(f"**Content Snippet:**")
-                            st.code(doc['content'], language="text")
-                            st.markdown("**Metadata:**")
-                            st.json(doc['metadata'])
+                    # 5. Save to session state
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": answer,
+                        "sources": sources
+                    })
                 else:
                     st.error(f"API Error: {res.text}")
             except Exception as e:
-                st.error(f"Failed to connect to backend: {e}")
-                st.info("Make sure `src/main.py` is running!")
-
-st.markdown("---")
-st.caption("TechDocAI Verification UI")
+                st.error("Could not connect to the backend server.")
+                st.info("Please ensure `python src/main.py` is running.")

@@ -161,22 +161,8 @@ class IngestionPipeline:
             return False
         return True
 
-    # Test
-    data_path = "d:/rag/data/docs"
-    # Ensure dummy data exists for test
-    if not os.path.exists(data_path):
-        os.makedirs(data_path, exist_ok=True)
-        with open(os.path.join(data_path, "quick_test.txt"), "w") as f:
-            f.write("A quick brown fox jumps over the lazy dog.")
 
-    try:
-        pipeline = IngestionPipeline()
-        result = pipeline.run(data_path)
-        print(f"\nIngestion Result: {result}")
-    except Exception as e:
-        logger.error(f"Pipeline failed: {e}")
-
-
+# End of IngestionPipeline class
 # Add at the end of the file, AFTER the IngestionPipeline class definition
 
 if __name__ == "__main__":
@@ -186,7 +172,7 @@ if __name__ == "__main__":
 
     try:
         # Create test data folder
-        data_path = "d:/rag/data/test_pipeline"
+        data_path = os.path.join(os.getcwd(), "data", "test_pipeline")
         os.makedirs(data_path, exist_ok=True)
         print(f"\n✅ Test data folder created: {data_path}")
 

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
+from typing import Optional, List
 import shutil
 import os
 import uuid
 
 # Core Modules
-from src.ingestion.pipeline import IngestionPipeline
-from src.retrieval.hybrid_search import HybridSearch
-from src.generation.llm import LLMClient
-from src.generation.prompts import PromptManager
+from src.pipeline.pipeline import IngestionPipeline
+from src.pipeline.retrieval_pipeline import RetrievalPipeline
+from src.pipeline.generation_pipeline import GenerationPipeline
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -17,8 +17,8 @@ router = APIRouter()
 # Initialize Singletons
 try:
     ingest_pipeline = IngestionPipeline()
-    search_engine = HybridSearch()
-    llm_client = LLMClient()
+    retrieval_pipeline = RetrievalPipeline()
+    generation_pipeline = GenerationPipeline()
     logger.info("API Services Initialized.")
 except Exception as e:
     logger.critical(f"Failed to initialize API services: {e}")
@@ -27,6 +27,7 @@ except Exception as e:
 class QueryRequest(BaseModel):
     question: str
     k: int = 5
+    session_id: Optional[str] = None
 
 @router.post("/ingest/")
 async def ingest_file(file: UploadFile = File(...)):
@@ -50,8 +51,8 @@ async def ingest_file(file: UploadFile = File(...)):
         # Run ingestion
         ingest_pipeline.run(temp_dir)
         
-        # Refresh Search Index (Rebuild BM25)
-        search_engine.refresh()
+        # Refresh Retrieval Pipeline (e.g., Rebuild BM25 index with new docs)
+        retrieval_pipeline.refresh()
         
         # Cleanup (Optional: Keep for debug, or remove)
         # shutil.rmtree(temp_dir)
@@ -71,12 +72,13 @@ async def search_documents(request: QueryRequest):
     """
     logger.info(f"Search request: '{request.question}'")
     try:
-        # 1. Hybrid Search
-        candidates = search_engine.search(request.question, k=request.k * 2) # Fetch more for reranking
-        
-        # 2. Rerank (Placeholder/Simple for now, can enable full Reranker if dependencies ready)
-        # For now, let's take top k from candidates
-        final_docs = candidates[:request.k]
+        # Load history for query rewriting if session_id provided
+        history = []
+        if request.session_id:
+            history = generation_pipeline.memory.get_history(request.session_id)
+            
+        # 1. Execute Retrieval Pipeline (Now with Query Rewriting!)
+        final_docs = retrieval_pipeline.run(request.question, k=request.k, history=history)
         
         response_data = []
         context_parts = []
@@ -89,19 +91,20 @@ async def search_documents(request: QueryRequest):
             })
             context_parts.append(doc.page_content)
             
-        # 3. Generate Answer
+        # 2. Execute Generation Pipeline
         logger.info("Generating answer with LLM...")
-        context_str = "\n\n".join(context_parts)
-        # Detect domain from first doc or default
-        domain = final_docs[0].metadata.get('domain', 'general') if final_docs else "general"
-        
-        system_prompt = PromptManager.build_prompt(context_str, domain=domain)
-        answer = llm_client.generate(system_prompt, request.question)
+        answer = generation_pipeline.run(request.question, final_docs, session_id=request.session_id)
             
         return {
             "answer": answer,
             "count": len(final_docs),
-            "results": response_data
+            "results": [
+                {
+                    "content": doc.page_content,
+                    "metadata": doc.metadata,
+                    "domain": doc.metadata.get('domain', 'unknown')
+                } for doc in final_docs
+            ]
         }
     except Exception as e:
         logger.error(f"Search API failed: {e}")

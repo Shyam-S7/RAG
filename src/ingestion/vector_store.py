@@ -99,9 +99,8 @@ class ChromaStore:
             )
 
     def _generate_id(self, content: str, source: str) -> str:
-        import time
-
-        composite = f"{source}_{content}_{time.time()}"
+        """Generates a deterministic ID based on content and source for deduplication."""
+        composite = f"{source}_{content}"
         return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
 
     def reset_db(self):

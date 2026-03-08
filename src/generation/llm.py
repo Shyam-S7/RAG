@@ -17,7 +17,7 @@ class LLMClient:
             raise ValueError("GROQ_API_KEY not found in Config")
             
         self.client = Groq(api_key=self.api_key)
-        self.model = "llama3-70b-8192" 
+        self.model = "llama-3.3-70b-versatile" 
 
     def generate(self, system_prompt: str, user_query: str) -> str:
         completion = self.client.chat.completions.create(

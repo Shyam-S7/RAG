@@ -167,107 +167,50 @@ class IngestionPipeline:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TESTING COMPLETE INGESTION PIPELINE")
+    print("TESTING INGESTION PIPELINE WITH REAL PDF")
     print("=" * 60)
 
     try:
-        # Create test data folder
-        data_path = os.path.join(os.getcwd(), "data", "test_pipeline")
-        os.makedirs(data_path, exist_ok=True)
-        print(f"\n✅ Test data folder created: {data_path}")
-
-        # Test 1: Create test documents
-        print(f"\n{'='*60}")
-        print("Test 1: Creating Test Documents")
-        print(f"{'='*60}")
-
-        test_files = {
-            "test_python.txt": """
-            Python Programming Fundamentals
+        import json
+        
+        # 1. Setup Data Folder
+        user_file_dir = os.path.join(os.getcwd(), "file")
+        if not os.path.exists(user_file_dir) or not os.listdir(user_file_dir):
+            print(f"❌ Error: {user_file_dir} not found or empty. Place rag.pdf there.")
+            sys.exit(1)
             
-            Python is a high-level programming language.
-            def my_function():
-                return "Hello"
-            
-            Classes and functions are core concepts.
-            import numpy as np
-            """,
-            "test_algorithm.txt": """
-            Data Structure and Algorithm Guide
-            
-            Algorithm complexity is measured with Big O notation.
-            Binary tree traversal uses DFS and BFS.
-            Graph algorithms solve connectivity problems.
-            Time complexity O(log n) for balanced trees.
-            """,
-            "test_ml.txt": """
-            Machine Learning Concepts
-            
-            Neural networks are inspired by biological neurons.
-            Deep learning uses transformer architecture.
-            Training phase involves loss function optimization.
-            Inference is the prediction phase.
-            """,
-        }
+        print(f"📂 Processing files from: {user_file_dir}")
 
-        for filename, content in test_files.items():
-            filepath = os.path.join(data_path, filename)
-            with open(filepath, "w") as f:
-                f.write(content)
-
-        print(f"✅ Created {len(test_files)} test documents")
-
-        # Test 2: Run pipeline
-        print(f"\n{'='*60}")
-        print("Test 2: Running Complete Pipeline")
-        print(f"{'='*60}")
-        print(f"📁 Processing folder: {data_path}")
-
+        # 2. Run Pipeline
         pipeline = IngestionPipeline()
-        result = pipeline.run(data_path)
+        stats = pipeline.run(user_file_dir)
 
-        print(f"\n✅ Pipeline execution complete")
-
-        # Test 3: Display results
+        # 3. Save Summary to Test Folder
+        test_dir = os.path.join(os.getcwd(), "test")
+        os.makedirs(test_dir, exist_ok=True)
+        
+        summary_file = os.path.join(test_dir, "ingestion_summary.json")
+        with open(summary_file, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=4)
+            
+        print(f"\n✅ Ingestion complete. Summary saved to: {summary_file}")
+        
+        # 4. Show Statistics
         print(f"\n{'='*60}")
-        print("Test 3: Pipeline Results")
+        print("PIPELINE STATISTICS")
         print(f"{'='*60}")
-        print(f"✅ Success: {result['success']}")
-        print(f"📊 Total files found: {result['total_files']}")
-        print(f"✔️  Files processed: {result['processed_files']}")
-        print(f"❌ Files failed: {result['failed_files']}")
-        print(f"📦 Total chunks created: {result['total_chunks']}")
-
-        if result["files_processed"]:
-            print(f"\n📄 Files processed:")
-            for file_info in result["files_processed"]:
-                print(f"   ✓ {file_info['file']}: {file_info['chunks']} chunks")
-
-        if result["files_failed"]:
-            print(f"\n⚠️  Failed files:")
-            for file_info in result["files_failed"]:
-                print(f"   ✗ {file_info['file']}: {file_info['reason']}")
-
-        # Test 4: Verify in ChromaDB
-        print(f"\n{'='*60}")
-        print("Test 4: Verifying ChromaDB Storage")
+        print(f"� Files Processed: {stats['processed_files']}")
+        print(f"📦 Total Chunks Stored: {stats['total_chunks']}")
+        print(f"✅ Success Status: {stats['success']}")
+        
+        if stats["files_processed"]:
+            print("\nProcessed Details:")
+            for info in stats["files_processed"]:
+                print(f" - {info['file']}: {info['chunks']} chunks")
+        
         print(f"{'='*60}")
-        store = ChromaStore()
-        db_result = store.inspect_db()
-        print(f"✅ Documents verified in ChromaDB")
-        print(f"📦 Total documents in DB: {db_result['total_documents']}")
-        print(f"🎯 Sample domains stored: programming, dsa, ml_ai")
-
-        print(f"\n{'='*60}")
-        print("✅ COMPLETE PIPELINE TESTING SUCCESSFUL")
-        print(f"{'='*60}")
-        print(f"\n🎉 All 3 stages working:")
-        print(f"   1️⃣  Preprocessor: Clean, detect domain, chunk")
-        print(f"   2️⃣  Embedder: Generate vectors")
-        print(f"   3️⃣  Vector Store: Store in ChromaDB")
 
     except Exception as e:
         print(f"❌ Pipeline Error: {e}")
         import traceback
-
         traceback.print_exc()

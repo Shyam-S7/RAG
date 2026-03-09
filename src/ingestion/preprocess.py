@@ -294,63 +294,34 @@ if __name__ == "__main__":
     print("TESTING PREPROCESSOR")
     print("=" * 60)
 
-    # 1. Create test files
-    test_dir = "d:/rag/data/test"
-    os.makedirs(test_dir, exist_ok=True)
-
-    # Test 1: Python file (Programming domain)
-    test_file_1 = os.path.join(test_dir, "test_python.txt")
-    with open(test_file_1, "w") as f:
-        f.write(
-            """
-        Python Programming Guide
-        
-        def hello_world():
-            print('Hello World')
-        
-        This is a Python function that demonstrates basic syntax.
-        Functions are reusable blocks of code.
-        
-        Class is also an important concept.
-        import os
-        """
-        )
-
-    # Test 2: Algorithm file (DSA domain)
-    test_file_2 = os.path.join(test_dir, "test_algorithm.txt")
-    with open(test_file_2, "w") as f:
-        f.write(
-            """
-        Data Structure and Algorithm
-        
-        Binary Search Tree is a common data structure.
-        Time Complexity: O(log n) for balanced tree.
-        Space Complexity: O(n) for storing nodes.
-        
-        DFS and BFS are graph traversal algorithms.
-        Big O notation helps analyze algorithm efficiency.
-        """
-        )
-
-    # Test 3: Web development file
-    test_file_3 = os.path.join(test_dir, "test_web.txt")
-    with open(test_file_3, "w") as f:
-        f.write(
-            """
-        Web Development Basics
-        
-        REST API is the standard for web services.
-        HTTP methods: GET, POST, PUT, DELETE.
-        JSON format is widely used for data exchange.
-        React framework simplifies frontend development.
-        HTML and CSS are fundamental web technologies.
-        """
-        )
-
-    # 2. Run Processor on all test files
     processor = Preprocessor()
-    test_files = [test_file_1, test_file_2, test_file_3]
+    
+    # 1. Check if 'file' folder has content
+    user_file_dir = os.path.join(os.getcwd(), "file")
+    test_files = []
+    
+    if os.path.exists(user_file_dir):
+        files_in_dir = [os.path.join(user_file_dir, f) for f in os.listdir(user_file_dir) 
+                        if os.path.isfile(os.path.join(user_file_dir, f))]
+        if files_in_dir:
+            print(f"📂 Found {len(files_in_dir)} user files in /file folder.")
+            test_files = files_in_dir
 
+    # 2. If no user files, create dummy test files
+    if not test_files:
+        print("ℹ️ No user files found in /file. Creating dummy test files...")
+        test_dir = os.path.join(os.getcwd(), "data", "test_ingestion")
+        os.makedirs(test_dir, exist_ok=True)
+        
+        test_file_path = os.path.join(test_dir, "test_python.txt")
+        with open(test_file_path, "w") as f:
+            f.write("def test(): print('hello world')\nimport os")
+        test_files = [test_file_path]
+
+    # 3. Process and Store
+    import json
+    all_test_chunks = []
+    
     for test_file in test_files:
         try:
             print(f"\n{'='*60}")
@@ -362,19 +333,37 @@ if __name__ == "__main__":
             if chunks:
                 print(f"✅ Successfully processed '{os.path.basename(test_file)}'")
                 print(f"📦 Total Chunks: {len(chunks)}")
-                print(f"🎯 Detected Domain: {chunks[0].metadata['domain']}")
-                print(f"📊 Chunk Size: {len(chunks[0].page_content)} chars")
-                print(f"📄 Source: {chunks[0].metadata['source']}")
-                print(f"⏱️  Processed At: {chunks[0].metadata['processed_at']}")
-
+                
+                # Collect for saving
+                for c in chunks:
+                    all_test_chunks.append({
+                        "file": os.path.basename(test_file),
+                        "domain": c.metadata['domain'],
+                        "content": c.page_content
+                    })
+                
                 # Show sample chunk
-                print(f"\n📋 Sample Chunk Content:")
-                print(f"   {chunks[0].page_content[:100]}...")
+                print(f"\n📋 Sample Chunk Content (First 150 chars):")
+                print(f"   {chunks[0].page_content[:150]}...")
             else:
-                print(f"❌ No chunks created for {os.path.basename(test_file)}")
+                print(f"❌ No content extracted from {os.path.basename(test_file)}")
 
         except Exception as e:
             print(f"❌ Error processing {os.path.basename(test_file)}: {e}")
+
+    # 4. Save to Test Folder
+    if all_test_chunks:
+        output_path = os.path.join(os.getcwd(), "test")
+        os.makedirs(output_path, exist_ok=True)
+        file_name = os.path.join(output_path, "preprocessed_chunks.json")
+        
+        # Limit to 10 chunks as requested by user
+        export_data = all_test_chunks[:10]
+        
+        with open(file_name, "w", encoding="utf-8") as f:
+            json.dump(export_data, f, indent=4)
+        
+        print(f"\n💾 Saved first {len(export_data)} chunks to: {file_name}")
 
     print(f"\n{'='*60}")
     print("✅ PREPROCESSOR TESTING COMPLETE")

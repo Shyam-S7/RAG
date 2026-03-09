@@ -58,3 +58,65 @@ class Reranker:
         except Exception as e:
             logger.error(f"Error during reranking: {e}")
             return documents[:k]
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TESTING RERANKER (CHAINED FROM HYBRID RESULTS)")
+    print("=" * 60)
+    
+    try:
+        import json
+        
+        # 1. Load candidates from Hybrid Search result file
+        input_file = os.path.join(os.getcwd(), "test", "hybrid_search_results.json")
+        if not os.path.exists(input_file):
+            print(f"❌ Error: {input_file} not found. Run hybrid_search.py first.")
+            sys.exit(1)
+            
+        with open(input_file, "r", encoding="utf-8") as f:
+            input_data = json.load(f)
+            
+        test_query = input_data["query"]
+        candidates_data = input_data["results"]
+        
+        # Convert JSON data back to LangChain Documents
+        candidates = [
+            Document(page_content=item["content"], metadata=item["metadata"])
+            for item in candidates_data
+        ]
+        
+        print(f"✅ Loaded {len(candidates)} candidates for query: '{test_query}'")
+            
+        # 2. Rerank the candidates
+        print("\n🧠 Stage 2: Reranking with Cross-Encoder...")
+        reranker = Reranker()
+        # Rerank to top 3
+        final_docs = reranker.rerank(test_query, candidates, k=3)
+        
+        # 3. Save Reranked Results
+        output_data = {
+            "query": test_query,
+            "reranked_results": []
+        }
+        
+        for i, doc in enumerate(final_docs):
+            output_data["reranked_results"].append({
+                "rank": i + 1,
+                "content": doc.page_content,
+                "metadata": doc.metadata
+            })
+        
+        output_file = os.path.join(os.getcwd(), "test", "reranked_results.json")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=4)
+            
+        print(f"💾 Reranked results saved to: {output_file}")
+        
+        print(f"\n✅ Top 3 Refined Results:")
+        for i, doc in enumerate(final_docs):
+            print(f"   [{i+1}] {doc.page_content[:100]}...")
+
+    except Exception as e:
+        print(f"❌ Rerank Error: {e}")
+        import traceback
+        traceback.print_exc()

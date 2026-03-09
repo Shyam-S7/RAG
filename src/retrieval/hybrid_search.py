@@ -105,3 +105,53 @@ class HybridSearch:
         # Sort by total fusion score
         sorted_keys = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
         return [(doc_map[key], {"rrf_score": scores[key]}) for key in sorted_keys[:k]]
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TESTING HYBRID SEARCH")
+    print("=" * 60)
+    
+    try:
+        searcher = HybridSearch()
+        
+        # Ensure BM25 is up to date with the latest ingestion
+        print("\n🔄 Refreshing index...")
+        searcher.refresh()
+        
+        test_query = "what is rag"
+        print(f"\n🔍 Searching for: '{test_query}'")
+        results = searcher.search(test_query, k=5)
+        
+        if not results:
+            print("❌ No results found. Did you run the ingestion test first?")
+        else:
+            print(f"✅ Found {len(results)} results.")
+            import json
+            
+            output_data = {
+                "query": test_query,
+                "results": []
+            }
+            
+            for i, (doc, meta) in enumerate(results):
+                output_data["results"].append({
+                    "rank": i + 1,
+                    "rrf_score": meta.get("rrf_score", 0),
+                    "content": doc.page_content,
+                    "metadata": doc.metadata
+                })
+            
+            output_file = os.path.join(os.getcwd(), "test", "hybrid_search_results.json")
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(output_data, f, indent=4)
+                
+            print(f"💾 Search results saved to: {output_file}")
+            
+            print("\nPreview of top result:")
+            top_doc, top_meta = results[0]
+            print(f"📄 Content: {top_doc.page_content[:150]}...")
+                
+    except Exception as e:
+        print(f"❌ Search Error: {e}")
+        import traceback
+        traceback.print_exc()

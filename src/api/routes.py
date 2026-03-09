@@ -6,7 +6,7 @@ import os
 import uuid
 
 # Core Modules
-from src.pipeline.pipeline import IngestionPipeline
+from src.pipeline.ingestion_pipeline import IngestionPipeline
 from src.pipeline.retrieval_pipeline import RetrievalPipeline
 from src.pipeline.generation_pipeline import GenerationPipeline
 from src.utils.logging import get_logger

@@ -126,7 +126,9 @@ class ChromaStore:
                 print(f"ID: {data['ids'][i]}")
                 print(f"Metadata: {data['metadatas'][i]}")
                 print(f"Content: {data['documents'][i][:50]}...")
-                print(f"Vector: {'Present' if data['embeddings'] else 'MISSING!'}")
+                is_present = data['embeddings'] is not None and len(data['embeddings']) > i
+                status = f"Present (len: {len(data['embeddings'][i])})" if is_present else "MISSING!"
+                print(f"Vector: {status}")
                 print("-" * 20)
         except Exception as e:
             logger.error(f"Inspection failed: {e}")
@@ -134,47 +136,74 @@ class ChromaStore:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TESTING VECTOR STORE (CHROMADB)")
+    print("TESTING VECTOR STORE WITH SAVED EMBEDDINGS")
     print("=" * 60)
+
     try:
-        store = ChromaStore()
-        print(f"\n✅ ChromaStore initialized")
-        print(f"📁 Database path: {store.persist_directory}")
-
+        import json
         from langchain_core.documents import Document
+        
+        # 1. Load Embedded Chunks from Test Folder
+        embedded_file = os.path.join(os.getcwd(), "test", "embedded_chunks.json")
+        if not os.path.exists(embedded_file):
+            print(f"❌ Error: {embedded_file} not found. Run embedding.py first.")
+            sys.exit(1)
+            
+        with open(embedded_file, "r", encoding="utf-8") as f:
+            embedded_data = json.load(f)
+        
+        print(f"✅ Loaded {len(embedded_data)} embedded chunks from {embedded_file}")
 
-        sample_docs = [
-            Document(
-                page_content="Python is a programming language used for web development and data science.",
+        # 2. Convert to LangChain Documents
+        # Note: In a real flow, we'd use use the 'embedding' field directly, 
+        # but ChromaStore.add_documents will re-verify them using the Embedder class.
+        test_docs = []
+        for item in embedded_data:
+            test_docs.append(Document(
+                page_content=item["content"],
                 metadata={
-                    "domain": "programming",
-                    "source": "test_python.txt",
-                    "char_count": 80,
-                },
-            ),
-            Document(
-                page_content="Binary search trees provide O(log n) time complexity for operations.",
-                metadata={"domain": "dsa", "source": "test_dsa.txt", "char_count": 75},
-            ),
-            Document(
-                page_content="REST API is the standard architecture for web services and microservices.",
-                metadata={
-                    "domain": "web_development",
-                    "source": "test_web.txt",
-                    "char_count": 78,
-                },
-            ),
-        ]
-        print(f"✅ Created {len(sample_docs)} sample documents")
+                    "source": item["file"],
+                    "domain": item["domain"]
+                }
+            ))
 
-        store.add_documents(sample_docs)
-        print(f"✅ Documents added successfully")
+        # 3. Initialize and Store in Chroma
+        print("\n🏟️ Stage 2: Storing in ChromaDB...")
+        store = ChromaStore()
+        
+        # Optional: Reset DB for a clean test
+        # store.reset_db() 
+        
+        store.add_documents(test_docs)
+        print(f"✅ Documents stored in ChromaDB.")
 
-        store.inspect_db()
-        print(f"✅ Database inspection complete")
+        # 4. Inspect and Save Records
+        print("\n🔍 Stage 3: Inspecting & Saving Database Records...")
+        store.inspect_db(limit=10)
+        
+        # Manually fetch for file storage
+        db_store = store.get_vectorstore()
+        db_data = db_store.get(limit=10, include=["metadatas", "documents"])
+        
+        records = []
+        for i in range(len(db_data["ids"])):
+            records.append({
+                "id": db_data["ids"][i],
+                "metadata": db_data["metadatas"][i],
+                "content": db_data["documents"][i]
+            })
+            
+        output_file = os.path.join(os.getcwd(), "test", "vector_store_records.json")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(records, f, indent=4)
+            
+        print(f"✅ Record inspection complete. Results saved to: {output_file}")
+
+        print(f"\n{'='*60}")
+        print("✅ VECTOR STORE TEST COMPLETE")
+        print(f"{'='*60}")
 
     except Exception as e:
         print(f"❌ Vector Store Error: {e}")
         import traceback
-
         traceback.print_exc()

@@ -77,3 +77,73 @@ class GenerationPipeline:
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             return "I'm sorry, I encountered an error while generating the response."
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TESTING COMPLETE GENERATION PIPELINE")
+    print("=" * 60)
+    
+    try:
+        import json
+        from langchain_core.documents import Document
+        
+        # 1. Load results from Retrieval Pipeline
+        input_file = os.path.join(os.getcwd(), "test", "retrieval_pipeline_results.json")
+        if not os.path.exists(input_file):
+            print(f"❌ Error: {input_file} not found. Run retrieval_pipeline.py first.")
+            sys.exit(1)
+            
+        with open(input_file, "r", encoding="utf-8") as f:
+            input_data = json.load(f)
+            
+        test_query = input_data["query"]
+        context_data = input_data["results"]
+        
+        # Convert back to Documents
+        context_docs = [
+            Document(page_content=item["content"], metadata=item["metadata"])
+            for item in context_data
+        ]
+        
+        print(f"✅ Loaded {len(context_docs)} context documents for query: '{test_query}'")
+
+        # 2. Run Generation
+        print("\n🤖 Generating final response with LLaMA-3.3...")
+        pipeline = GenerationPipeline()
+        session_id = "test_session_001"
+        answer = pipeline.run(test_query, context_docs, session_id=session_id)
+        
+        # 3. Save Results
+        output_data = {
+            "query": test_query,
+            "session_id": session_id,
+            "answer": answer
+        }
+        
+        test_dir = os.path.join(os.getcwd(), "test")
+        os.makedirs(test_dir, exist_ok=True)
+        
+        # Save JSON package
+        output_file = os.path.join(test_dir, "generation_pipeline_results.json")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=4)
+            
+        # Save plain text answer
+        answer_file = os.path.join(test_dir, "final_pipeline_answer.txt")
+        with open(answer_file, "w", encoding="utf-8") as f:
+            f.write(answer)
+            
+        print(f"\n✅ Generation complete.")
+        print(f"💾 Results saved to: {output_file}")
+        print(f"💾 Clean answer saved to: {answer_file}")
+        
+        print(f"\n{'='*60}")
+        print("PIPELINE ANSWER")
+        print(f"{'='*60}")
+        print(answer)
+        print(f"{'='*60}")
+
+    except Exception as e:
+        print(f"❌ Generation Pipeline Error: {e}")
+        import traceback
+        traceback.print_exc()

@@ -47,15 +47,19 @@ class RetrievalPipeline:
             history_str += f"{role}: {msg['content']}\n"
 
         prompt = f"""
-        Given the following conversation history and a follow-up question, rewrite the follow-up question to be a standalone, descriptive search query. 
-        If it's already a standalone question, return it as is.
+        You are a search query optimizer. Your goal is to rewrite the "Follow-up Question" into a single, standalone search query that includes all necessary context from the "Conversation History".
+        
+        RULES:
+        1. Keep it as a search-friendly phrase (e.g., "types of RAG paradigms" instead of "Tell me about types").
+        2. If the question is already clear, do not change it.
+        3. Only return the rewritten query text.
         
         CONVERSATION HISTORY:
         {history_str}
         
         FOLLOW-UP QUESTION: {query}
         
-        STANDALONE QUERY:"""
+        STANDALONE SEARCH QUERY:"""
         
         try:
             rewritten = self.llm.generate(system_prompt="You are a query optimizer.", user_query=prompt)
@@ -102,3 +106,64 @@ class RetrievalPipeline:
     def refresh(self):
         """Refreshes underlying search indices (e.g. BM25)."""
         self.search_engine.refresh()
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TESTING COMPLETE RETRIEVAL PIPELINE")
+    print("=" * 60)
+    
+    try:
+        import json
+        
+        pipeline = RetrievalPipeline()
+        # Ensure BM25 index is built from stored data
+        print("\n🔄 Refreshing Search Indices...")
+        pipeline.refresh()
+        
+        test_query = "what is RAG paradigms?"
+        print(f"\n🔍 Running End-to-End Retrieval for: '{test_query}'")
+        
+        # Run the full pipeline
+        final_docs = pipeline.run(test_query, k=5)
+        
+        if not final_docs:
+            print("❌ No results found. Ensure you have ingested documents first.")
+        else:
+            print(f"✅ Pipeline returned {len(final_docs)} optimized documents.")
+            
+            # Save results to test folder
+            output_data = {
+                "query": test_query,
+                "total_results": len(final_docs),
+                "results": []
+            }
+            
+            for i, doc in enumerate(final_docs):
+                output_data["results"].append({
+                    "position": i + 1,
+                    "source": doc.metadata.get("source", "unknown"),
+                    "content": doc.page_content,
+                    "metadata": doc.metadata
+                })
+            
+            test_dir = os.path.join(os.getcwd(), "test")
+            os.makedirs(test_dir, exist_ok=True)
+            output_file = os.path.join(test_dir, "retrieval_pipeline_results.json")
+            
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(output_data, f, indent=4)
+                
+            print(f"💾 Retrieval summary saved to: {output_file}")
+            
+            print("\nPreview of top optimized result:")
+            print(f"📄 Content: {final_docs[0].page_content[:200]}...")
+            print(f"📂 Source: {final_docs[0].metadata.get('source')}")
+
+        print(f"\n{'='*60}")
+        print("✅ RETRIEVAL PIPELINE TEST COMPLETE")
+        print(f"{'='*60}")
+
+    except Exception as e:
+        print(f"❌ Retrieval Pipeline Error: {e}")
+        import traceback
+        traceback.print_exc()

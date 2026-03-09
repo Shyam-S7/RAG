@@ -110,58 +110,59 @@ class Embedder:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TESTING EMBEDDER")
+    print("TESTING EMBEDDER WITH SAVED CHUNKS")
     print("=" * 60)
 
     try:
-        # Initialize embedder
+        import json
+        
+        # 1. Load Chunks from Test Folder
+        chunk_file = os.path.join(os.getcwd(), "test", "preprocessed_chunks.json")
+        if not os.path.exists(chunk_file):
+            print(f"❌ Error: {chunk_file} not found. Run preprocess.py first.")
+            sys.exit(1)
+            
+        with open(chunk_file, "r", encoding="utf-8") as f:
+            chunks_data = json.load(f)
+        
+        texts = [c["content"] for c in chunks_data]
+        print(f"✅ Loaded {len(texts)} chunks from {chunk_file}")
+
+        # 2. Initialize Embedder
+        print("\n🧠 Stage 2: Initializing Embedder...")
         embedder = Embedder()
-        print(f"\n✅ Embedder initialized")
         print(f"📱 Device: {embedder.device}")
-        print(f"🎯 Model: {embedder.model_name}")
 
-        # Test 1: Single query embedding
+        # 3. Generate Embeddings
         print(f"\n{'='*60}")
-        print("Test 1: Single Query Embedding")
+        print("Stage 3: Embedding Chunks")
         print(f"{'='*60}")
-        query = "What is machine learning?"
-        vector = embedder.embed_query(query)
-        print(f"✅ Query embedded successfully")
-        print(f"📝 Query: '{query}'")
-        print(f"📊 Vector dimension: {len(vector)}")
-        print(f"🔢 First 5 values: {vector[:5]}")
-
-        # Test 2: Batch embedding
-        print(f"\n{'='*60}")
-        print("Test 2: Batch Documents Embedding")
-        print(f"{'='*60}")
-        texts = [
-            "Python is a programming language",
-            "Machine learning uses neural networks",
-            "Data science analyzes large datasets",
-        ]
+        
         vectors = embedder.embed_documents(texts)
-        print(f"✅ Batch embedding successful")
-        print(f"📦 Total documents: {len(vectors)}")
-        print(f"📊 Vector dimension: {len(vectors[0])}")
-        print(
-            f"✔️  All vectors have same dimension: {len(set(len(v) for v in vectors)) == 1}"
-        )
+        print(f"✅ Successfully created {len(vectors)} vectors")
 
-        # Test 3: Embedding dimension
-        print(f"\n{'='*60}")
-        print("Test 3: Embedding Dimension")
-        print(f"{'='*60}")
-        dim = embedder.get_embedding_dimension()
-        print(f"✅ Embedding dimension retrieved")
-        print(f"📊 Dimension: {dim}")
+        # 4. Save Combined Data to Test Folder
+        embedded_data = []
+        for i, chunk in enumerate(chunks_data):
+            embedded_data.append({
+                "file": chunk["file"],
+                "content": chunk["content"],
+                "domain": chunk.get("domain", "unknown"),
+                "embedding": vectors[i]
+            })
+            
+        output_file = os.path.join(os.getcwd(), "test", "embedded_chunks.json")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(embedded_data, f, indent=4)
+        
+        print(f"\n💾 Saved embedded chunks to: {output_file}")
+        print(f"📊 Each vector has {len(vectors[0])} dimensions.")
 
         print(f"\n{'='*60}")
-        print("✅ EMBEDDER TESTING COMPLETE")
+        print("✅ EMBEDDER TEST COMPLETE")
         print(f"{'='*60}")
 
     except Exception as e:
         print(f"❌ Embedder Error: {e}")
         import traceback
-
         traceback.print_exc()

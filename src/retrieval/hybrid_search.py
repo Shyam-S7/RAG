@@ -70,14 +70,14 @@ class HybridSearch:
         logger.info(f"Searching: '{query}'")
         
         # 1. Vector Search (Semantic)
-        vec_results = self.vectorstore.similarity_search_with_score(query, k=k*2)
+        vec_results = self.vectorstore.similarity_search_with_score(query, k=k*4)
         
         # 2. BM25 Search (Keyword)
         if not self.bm25:
             return [(doc, {"score": score, "source": "vector"}) for doc, score in vec_results[:k]]
         
         tokenized_query = self._tokenize(query)
-        bm25_results = self.bm25.get_top_n(tokenized_query, self.documents, n=k*2)
+        bm25_results = self.bm25.get_top_n(tokenized_query, self.documents, n=k*4)
         
         # 3. Fusion
         return self._rrf_fusion(vec_results, bm25_results, k=k)

@@ -54,8 +54,8 @@ async def ingest_file(file: UploadFile = File(...)):
         # Refresh Retrieval Pipeline (e.g., Rebuild BM25 index with new docs)
         retrieval_pipeline.refresh()
         
-        # Cleanup (Optional: Keep for debug, or remove)
-        # shutil.rmtree(temp_dir)
+        # Cleanup temp directory
+        shutil.rmtree(temp_dir)
         
         return {
             "message": f"Successfully ingested {file.filename}",
@@ -80,17 +80,6 @@ async def search_documents(request: QueryRequest):
         # 1. Execute Retrieval Pipeline (Now with Query Rewriting!)
         final_docs = retrieval_pipeline.run(request.question, k=request.k, history=history)
         
-        response_data = []
-        context_parts = []
-        
-        for doc in final_docs:
-            response_data.append({
-                "content": doc.page_content,
-                "metadata": doc.metadata,
-                "domain": doc.metadata.get('domain', 'unknown')
-            })
-            context_parts.append(doc.page_content)
-            
         # 2. Execute Generation Pipeline
         logger.info("Generating answer with LLM...")
         answer = generation_pipeline.run(request.question, final_docs, session_id=request.session_id)

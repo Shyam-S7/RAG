@@ -158,15 +158,15 @@ class Chunker:
     def split(doc: LangchainDocument, domain: Domain) -> List[LangchainDocument]:
         # Domain-specific config
         config = {
-            Domain.PROGRAMMING: {"chunk_size": 350, "chunk_overlap": 50},
-            Domain.DSA: {"chunk_size": 600, "chunk_overlap": 100},
-            Domain.SYSTEM_DESIGN: {"chunk_size": 900, "chunk_overlap": 150},
-            Domain.IOT: {"chunk_size": 500, "chunk_overlap": 100},
-            Domain.WEB_DEV: {"chunk_size": 400, "chunk_overlap": 80},
-            Domain.ML_AI: {"chunk_size": 400, "chunk_overlap": 50},
-            Domain.GEN_AI: {"chunk_size": 450, "chunk_overlap": 60},
-            Domain.DATA_SCIENCE: {"chunk_size": 400, "chunk_overlap": 50},
-            Domain.GENERAL: {"chunk_size": 500, "chunk_overlap": 100},
+            Domain.PROGRAMMING: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.DSA: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.SYSTEM_DESIGN: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.IOT: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.WEB_DEV: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.ML_AI: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.GEN_AI: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.DATA_SCIENCE: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.GENERAL: {"chunk_size": 1200, "chunk_overlap": 200},
         }
 
         params = config.get(domain, config[Domain.GENERAL])

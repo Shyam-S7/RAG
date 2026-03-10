@@ -68,30 +68,40 @@ class ChromaStore:
             ]
             store = self.get_vectorstore()
             existing_ids = set(store.get()["ids"] or [])
-            new_docs = [
-                doc for doc, doc_id in zip(documents, ids) if doc_id not in existing_ids
-            ]
-            new_ids = [
-                doc_id
-                for doc, doc_id in zip(documents, ids)
-                if doc_id not in existing_ids
-            ]
+            
+            # Filter against DB and track unique IDs in current batch to avoid internal duplicates
+            new_docs_raw = []
+            new_ids_raw = []
+            for doc, doc_id in zip(documents, ids):
+                if doc_id not in existing_ids:
+                    new_docs_raw.append(doc)
+                    new_ids_raw.append(doc_id)
 
-            if not new_docs:
+            if not new_docs_raw:
                 logger.warning("All documents already exist in ChromaDB.")
                 return
 
+            # Deduplicate within the current batch (in case chunks are identical)
+            unique_new_docs = []
+            unique_new_ids = []
+            seen_ids = set()
+            for doc, doc_id in zip(new_docs_raw, new_ids_raw):
+                if doc_id not in seen_ids:
+                    unique_new_docs.append(doc)
+                    unique_new_ids.append(doc_id)
+                    seen_ids.add(doc_id)
+
             batch_size = 100
-            for i in range(0, len(new_docs), batch_size):
+            for i in range(0, len(unique_new_docs), batch_size):
                 store.add_documents(
-                    documents=new_docs[i : i + batch_size],
-                    ids=new_ids[i : i + batch_size],
+                    documents=unique_new_docs[i : i + batch_size],
+                    ids=unique_new_ids[i : i + batch_size],
                 )
                 logger.info(
-                    f"Added batch {i//batch_size + 1}: {len(new_docs[i:i+batch_size])} docs"
+                    f"Added batch {i//batch_size + 1}: {len(unique_new_docs[i:i+batch_size])} docs"
                 )
 
-            logger.info(f"Successfully stored {len(new_docs)} documents.")
+            logger.info(f"Successfully stored {len(unique_new_docs)} documents.")
         except Exception as e:
             logger.error(f"Failed to add documents to ChromaDB: {e}")
             raise VectorStoreError(

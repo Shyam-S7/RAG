@@ -42,6 +42,29 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Connection Failed: {e}")
 
+    st.divider()
+    st.header("📊 Quality Audit (Ragas)")
+    if st.button("⚖️ Run Accuracy Check", use_container_width=True):
+        with st.spinner("LLaMA-3 is auditing the RAG pipeline..."):
+            try:
+                res = requests.post(f"{API_URL}/evaluate/")
+                if res.status_code == 200:
+                    data = res.json()["scores"]
+                    st.success("Audit Complete!")
+                    
+                    # Display metrics in a grid
+                    col1, col2 = st.columns(2)
+                    col1.metric("Faithfulness", f"{data.get('faithfulness', 0):.2f}")
+                    col2.metric("Relevancy", f"{data.get('answer_relevancy', 0):.2f}")
+                    
+                    col3, col4 = st.columns(2)
+                    col3.metric("Precision", f"{data.get('context_precision', 0):.2f}")
+                    col4.metric("Recall", f"{data.get('context_recall', 0):.2f}")
+                else:
+                    st.error("Audit Failed.")
+            except Exception as e:
+                st.error(f"Error: {e}")
+
     if st.button("🗑️ Clear Chat History", use_container_width=True):
         st.session_state.messages = []
         st.session_state.session_id = str(uuid.uuid4())

@@ -18,3 +18,8 @@ scikit-learn
 unstructured
 markdown
 python-multipart
+ragas
+datasets
+pandas
+eval_type_backport
+langchain-groq

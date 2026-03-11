@@ -5,17 +5,16 @@ TechDocAI is a modular, high-performance Retrieval-Augmented Generation (RAG) as
 ## 🚀 Key Features
 
 - **Hybrid Retrieval**: Combines **ChromaDB** (Vector Search) and **BM25** (Keyword Search) using Reciprocal Rank Fusion (RRF).
-- **Deep Reranking**: Uses a Cross-Encoder model to refine search results for maximum relevance.
+- **Reranking**: Uses a Cross-Encoder model to refine search results for maximum relevance.
 - **Context Optimization**: Implements redundancy filtering, context compression, and attention-based reordering (Lost-in-the-Middle fix).
 - **Session Memory**: Intelligent conversation history management with automatic message trimming.
-- **Query Rewriting**: Automatically transforms shorthand follow-up questions into standalone search queries.
-- **Production-Grade API**: Built with **FastAPI** for high performance and scalability.
-- **Real-time UI**: Clean **Streamlit** interface for easy document ingestion and chat.
+- **API**: Built with **FastAPI** for high performance and scalability.
+- **Real time UI**: Clean **Streamlit** interface for easy document ingestion and chat.
 
 ## 🛠️ Tech Stack
 
-- **LLM**: Groq LLaMA-3.3-70B (Ultra-fast inference)
-- **Embeddings**: BGE-Small-EN-v1.5 (High-efficiency vectors)
+- **LLM**: Groq LLaMA-3.3-70B 
+- **Embeddings**: BGE-Small-EN-v1.5 
 - **Vector DB**: ChromaDB
 - **Backend**: FastAPI
 - **Frontend**: Streamlit

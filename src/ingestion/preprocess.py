@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
-    PDFPlumberLoader,
+    PyMuPDFLoader,
     TextLoader,
     UnstructuredMarkdownLoader,
     UnstructuredFileLoader,
@@ -49,8 +49,8 @@ class TextCleaner:
         text = re.sub(r"[\w\.-]+@[\w\.-]+\.\w+", "", text)
         # Remove phone numbers
         text = re.sub(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", "", text)
-        # Remove URLs
-        text = re.sub(r"https?://\S+", "", text)
+        # Remove URLs (Commented to preserve technical documentation links)
+        # text = re.sub(r"https?://\S+", "", text)
         # Remove excessive whitespace
         text = re.sub(r"\s+", " ", text).strip()
         return text
@@ -214,7 +214,7 @@ class FileLoader:
 
         try:
             if ext == ".pdf":
-                loader = PDFPlumberLoader(file_path)
+                loader = PyMuPDFLoader(file_path)
             elif ext == ".md":
                 loader = UnstructuredMarkdownLoader(file_path)
             elif ext in [".txt", ".py", ".js", ".java", ".cpp", ".c", ".h"]:

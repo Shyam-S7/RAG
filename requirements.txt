@@ -9,7 +9,7 @@ langchain-chroma
 chromadb
 sentence-transformers
 rank_bm25
-pdfplumber
+pymupdf
 torch
 python-dotenv
 pydantic

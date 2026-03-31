@@ -40,7 +40,7 @@ class PostProcessor:
         return unique_docs
 
     @staticmethod
-    def compress_context(documents: List[Document], max_chunk_chars: int = 800) -> List[Document]:
+    def compress_context(documents: List[Document], max_chunk_chars: int = 1400) -> List[Document]:
         """
         Basic context compression.
         Trims individual documents to a maximum length to ensure space for more sources.

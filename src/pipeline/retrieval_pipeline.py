@@ -82,7 +82,7 @@ class RetrievalPipeline:
         
         try:
             # Stage 1: Hybrid Search (Use the REWRITTEN query for search)
-            candidates_with_meta = self.search_engine.search(search_query, k=k*2)
+            candidates_with_meta = self.search_engine.search(search_query, k=k*4)
             candidates = [doc for doc, meta in candidates_with_meta]
             
             if not candidates:

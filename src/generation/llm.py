@@ -66,7 +66,7 @@ if __name__ == "__main__":
         )
 
         # 3. Call LLM
-        print("\n🤖 Calling Groq (llama-3.3-70b-versatile)...")
+        print("\n🤖 Calling Groq (llama-3.1-8b-instant)...")
         llm = LLMClient()
         answer = llm.generate(system_prompt, test_query)
         

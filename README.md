@@ -53,6 +53,8 @@ Each component can be tested individually using the built-in test blocks:
 1. **Ingestion**: `python -m src.pipeline.ingestion_pipeline`
 2. **Retrieval**: `python -m src.pipeline.retrieval_pipeline`
 3. **Generation**: `python -m src.pipeline.generation_pipeline`
+4. **Evaluation**: `python -m src.pipeline.evaluation_pipeline`
+
 
 Full test results and intermediate states are saved in the `test/` directory for verification.
 
@@ -65,3 +67,9 @@ Full test results and intermediate states are saved in the `test/` directory for
 - `src/api`: FastAPI route definitions.
 - `src/ui.py`: Streamlit interface.
 - `test/`: JSON logs of system performance and results.
+
+
+- .\venv\Scripts\activate 
+
+write Retrieval evaluation code and generation evaluation code both code and right there evaluation pipeline also
+

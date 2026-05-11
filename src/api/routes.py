@@ -12,6 +12,7 @@ from src.pipeline.generation_pipeline import GenerationPipeline
 from src.evaluation.evaluator import RAGEvaluator
 from src.utils.logging import get_logger
 import csv
+import json
 from datetime import datetime
 
 logger = get_logger(__name__)
@@ -43,13 +44,25 @@ async def run_evaluation(request: Optional[EvalRequest] = None):
     """
     logger.info("Evaluation request received.")
     try:
-        # Default evaluation set if none provided
-        eval_set = request.test_cases if request and request.test_cases else [
-            {
-                "question": "What is RAG methodology?",
-                "ground_truth": "RAG is a methodology that combines retrieval and generation in large language models to provide factually correct content."
-            }
-        ]
+        # Default evaluation set: Try to load our high-quality 50-sample Agent dataset
+        eval_file = os.path.join(os.getcwd(), "test", "ground_truth.json")
+        
+        if not request or not request.test_cases:
+            if os.path.exists(eval_file):
+                logger.info(f"Loading Golden Dataset from {eval_file}")
+                with open(eval_file, "r", encoding="utf-8") as f:
+                    raw_data = json.load(f)
+                    eval_set = [{"question": d["question"], "ground_truth": d["ground_truth"]} for d in raw_data]
+            else:
+                logger.warning("No ground_truth.json found. Using minimal fallback.")
+                eval_set = [
+                    {
+                        "question": "What is RAG methodology?",
+                        "ground_truth": "RAG is a methodology that combines retrieval and generation in large language models to provide factually correct content."
+                    }
+                ]
+        else:
+            eval_set = request.test_cases
         
         results = evaluator.run_evaluation(eval_set)
         

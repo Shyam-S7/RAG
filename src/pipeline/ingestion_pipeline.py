@@ -140,6 +140,15 @@ class IngestionPipeline:
             stats["success"] = False
             stats["error"] = "No valid chunks to ingest"
 
+        # 3. Refresh Retriever
+        try:
+            from src.pipeline.retrieval_pipeline import RetrievalPipeline
+            ret_pipeline = RetrievalPipeline()
+            ret_pipeline.refresh()
+            logger.info(f"Retriever refreshed. Knowledge base size: {self.store.count()} documents")
+        except Exception as e:
+            logger.error(f"Post-ingestion refresh failed: {e}")
+
         # Log final statistics
         logger.info(
             f"Ingestion Summary: {stats['processed_files']}/{stats['total_files']} files processed, {stats['total_chunks']} chunks stored"

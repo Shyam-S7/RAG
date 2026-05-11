@@ -1,6 +1,12 @@
 import logging
 import os
+import sys
 from datetime import datetime
+
+# Force UTF-8 encoding for standard output on Windows to prevent Emoji crashes
+if sys.stdout and sys.stdout.encoding.lower() != 'utf-8':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
 
 # Create logs directory
 logs_dir = os.path.join(os.getcwd(), "logs")
@@ -16,6 +22,7 @@ logging.basicConfig(
     format="[ %(asctime)s ] %(lineno)d %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
+    encoding="utf-8"
 )
 
 # Also log to console

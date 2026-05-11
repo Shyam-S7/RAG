@@ -115,16 +115,16 @@ if __name__ == "__main__":
 
     try:
         import json
-        
+
         # 1. Load Chunks from Test Folder
         chunk_file = os.path.join(os.getcwd(), "test", "preprocessed_chunks.json")
         if not os.path.exists(chunk_file):
             print(f"❌ Error: {chunk_file} not found. Run preprocess.py first.")
             sys.exit(1)
-            
+
         with open(chunk_file, "r", encoding="utf-8") as f:
             chunks_data = json.load(f)
-        
+
         texts = [c["content"] for c in chunks_data]
         print(f"✅ Loaded {len(texts)} chunks from {chunk_file}")
 
@@ -137,24 +137,26 @@ if __name__ == "__main__":
         print(f"\n{'='*60}")
         print("Stage 3: Embedding Chunks")
         print(f"{'='*60}")
-        
+
         vectors = embedder.embed_documents(texts)
         print(f"✅ Successfully created {len(vectors)} vectors")
 
         # 4. Save Combined Data to Test Folder
         embedded_data = []
         for i, chunk in enumerate(chunks_data):
-            embedded_data.append({
-                "file": chunk["file"],
-                "content": chunk["content"],
-                "domain": chunk.get("domain", "unknown"),
-                "embedding": vectors[i]
-            })
-            
+            embedded_data.append(
+                {
+                    "file": chunk["file"],
+                    "content": chunk["content"],
+                    "domain": chunk.get("domain", "unknown"),
+                    "embedding": vectors[i],
+                }
+            )
+
         output_file = os.path.join(os.getcwd(), "test", "embedded_chunks.json")
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(embedded_data, f, indent=4)
-        
+
         print(f"\n💾 Saved embedded chunks to: {output_file}")
         print(f"📊 Each vector has {len(vectors[0])} dimensions.")
 
@@ -165,4 +167,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"❌ Embedder Error: {e}")
         import traceback
+
         traceback.print_exc()

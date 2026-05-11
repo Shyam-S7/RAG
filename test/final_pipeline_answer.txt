@@ -1,0 +1,5 @@
+* RAG's technical integration with other AI methodologies, such as fine-tuning and reinforcement learning, has further expanded its capabilities.
+* The RAG research paradigm is continuously evolving, and we categorize it into three stages: 
+  • Naive RAG
+  • Advanced RAG
+  • Modular RAG

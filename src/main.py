@@ -6,6 +6,11 @@ from fastapi import FastAPI
 # Add project root to sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Force UTF-8 encoding for standard output on Windows to prevent Emoji crashes
+if sys.stdout and sys.stdout.encoding.lower() != 'utf-8':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+
 from src.api.routes import router as api_router
 
 from fastapi.middleware.cors import CORSMiddleware

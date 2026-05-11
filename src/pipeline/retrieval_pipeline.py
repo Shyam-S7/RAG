@@ -71,11 +71,21 @@ class RetrievalPipeline:
             logger.error(f"Query rewrite failed: {e}")
             return query
 
+    def knowledge_base_ready(self) -> bool:
+        """Returns True if the vector store has at least one document."""
+        return self.search_engine.store.count() > 0
+
     def run(self, query: str, k: int = 5, history: List[dict] = None) -> List[Document]:
         """
         Executes the end-to-end retrieval flow with optional query rewriting.
         """
-        # 0. Rewrite Query if history exists
+        # 0. Check for data
+        if not self.knowledge_base_ready():
+            raise RuntimeError(
+                "Knowledge base empty. Upload and ingest documents before querying or evaluation."
+            )
+        
+        # 1. Rewrite Query if history exists
         search_query = self._rewrite_query(query, history) if history else query
         
         logger.info(f"Pipeline running for query: '{search_query}'")

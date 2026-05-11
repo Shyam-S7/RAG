@@ -67,6 +67,10 @@ class HybridSearch:
 
     def search(self, query: str, k: int = 5) -> List[Tuple[Document, Dict[str, Any]]]:
         """Runs Vector + BM25 and fuses them."""
+        # 0. Check for empty index
+        if not self.documents:
+            raise RuntimeError("BM25 index empty — ingestion not completed.")
+            
         logger.info(f"Searching: '{query}'")
         
         # 1. Vector Search (Semantic)

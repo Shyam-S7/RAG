@@ -48,6 +48,14 @@ class ChromaStore:
             collection_name="techdoc_collection",
         )
 
+    def count(self) -> int:
+        """Returns the number of documents in the collection."""
+        try:
+            store = self.get_vectorstore()
+            return store._collection.count()
+        except Exception:
+            return 0
+
     def add_documents(self, documents: List[Document]):
         if not documents:
             logger.warning("No documents provided to add_documents.")

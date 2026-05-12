@@ -1,23 +1,13 @@
-from typing import List, Tuple, Dict, Any
 import hashlib
 import re
-import os
-import sys
-
+import logging
+from typing import List, Tuple, Dict, Any
 from rank_bm25 import BM25Okapi
 from langchain_core.documents import Document
+from src.core.settings import Settings
+from src.core.services import VectorStoreService
 
-try:
-    from src.ingestion.vector_store import ChromaStore
-    from src.utils.logging import get_logger
-    from src.utils.exception import RetrievalError
-except ModuleNotFoundError:
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-    from src.ingestion.vector_store import ChromaStore
-    from src.utils.logging import get_logger
-    from src.utils.exception import RetrievalError
-
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 class HybridSearch:
     """
@@ -27,16 +17,17 @@ class HybridSearch:
     - Fusion: Reciprocal Rank Fusion (RRF)
     """
 
-    def __init__(self):
+    def __init__(self, vs_service: VectorStoreService = None):
         try:
-            self.store = ChromaStore()
-            self.vectorstore = self.store.get_vectorstore()
+            self.vs_service = vs_service or VectorStoreService()
+            self.vectorstore = self.vs_service.vectorstore
             self.bm25 = None
             self.documents = []
             self.build_bm25()
-            logger.info("HybridSearch initialized.")
+            logger.info("✅ HybridSearch initialized with shared services.")
         except Exception as e:
-            raise RetrievalError(f"Initialization Failed: {e}", sys)
+            logger.error(f"❌ HybridSearch Init Failed: {e}")
+            raise e
 
     def refresh(self):
         """Rebuilds the BM25 index from current vector store state."""
@@ -47,7 +38,7 @@ class HybridSearch:
         try:
             data = self.vectorstore.get(include=["metadatas", "documents"])
             if not data["documents"]:
-                logger.warning("No documents in DB for BM25.")
+                logger.warning("⚠️ No documents in DB for BM25.")
                 return
 
             self.documents = [
@@ -57,9 +48,9 @@ class HybridSearch:
             
             tokenized_corpus = [self._tokenize(doc.page_content) for doc in self.documents]
             self.bm25 = BM25Okapi(tokenized_corpus)
-            logger.info(f"BM25 Index built with {len(self.documents)} docs.")
+            logger.info(f"✅ BM25 Index built with {len(self.documents)} docs.")
         except Exception as e:
-            logger.error(f"BM25 Build Error: {e}")
+            logger.error(f"❌ BM25 Build Error: {e}")
 
     def _tokenize(self, text: str) -> List[str]:
         """Simple tokenizer: lowercase + alpha-numeric only."""
@@ -67,12 +58,10 @@ class HybridSearch:
 
     def search(self, query: str, k: int = 5) -> List[Tuple[Document, Dict[str, Any]]]:
         """Runs Vector + BM25 and fuses them."""
-        # 0. Check for empty index
         if not self.documents:
-            raise RuntimeError("BM25 index empty — ingestion not completed.")
+            logger.warning("⚠️ Search attempted on empty index.")
+            return []
             
-        logger.info(f"Searching: '{query}'")
-        
         # 1. Vector Search (Semantic)
         vec_results = self.vectorstore.similarity_search_with_score(query, k=k*4)
         
@@ -91,22 +80,18 @@ class HybridSearch:
         scores = {}
         doc_map = {}
 
-        # Use content hash to unique-identify documents for merging
         def get_key(content): return hashlib.md5(content.encode()).hexdigest()
 
-        # Score Vector Results
         for rank, (doc, _) in enumerate(vec_results):
             key = get_key(doc.page_content)
             scores[key] = scores.get(key, 0) + 1 / (c + rank)
             doc_map[key] = doc
 
-        # Score BM25 Results
         for rank, doc in enumerate(bm25_results):
             key = get_key(doc.page_content)
             scores[key] = scores.get(key, 0) + 1 / (c + rank)
             doc_map[key] = doc
 
-        # Sort by total fusion score
         sorted_keys = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
         return [(doc_map[key], {"rrf_score": scores[key]}) for key in sorted_keys[:k]]
 

@@ -53,7 +53,7 @@ Each component can be tested individually using the built-in test blocks:
 1. **Ingestion**: `python -m src.pipeline.ingestion_pipeline`
 2. **Retrieval**: `python -m src.pipeline.retrieval_pipeline`
 3. **Generation**: `python -m src.pipeline.generation_pipeline`
-4. **Evaluation**: `python -m src.pipeline.evaluation_pipeline`
+4. **Evaluation**: `python -m src.evaluation.evaluation_runner`
 
 
 Full test results and intermediate states are saved in the `test/` directory for verification.

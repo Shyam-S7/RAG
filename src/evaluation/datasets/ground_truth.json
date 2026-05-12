@@ -1,0 +1,10 @@
+[
+  {
+    "question": "What is RAG?",
+    "ground_truth": "RAG stands for Retrieval-Augmented Generation."
+  },
+  {
+    "question": "What is machine learning?",
+    "ground_truth": "Machine learning is a subset of AI."
+  }
+]

@@ -6,27 +6,38 @@ import os
 import uuid
 
 # Core Modules
+from src.core.settings import Settings
+from src.core.services import VectorStoreService, RetrievalService, GenerationService
 from src.pipeline.ingestion_pipeline import IngestionPipeline
 from src.pipeline.retrieval_pipeline import RetrievalPipeline
 from src.pipeline.generation_pipeline import GenerationPipeline
-from src.evaluation.evaluator import RAGEvaluator
-from src.utils.logging import get_logger
+from src.evaluation.retrieval_eval import RetrievalEvaluator
+from src.evaluation.generation_eval import GenerationEvaluator
+import logging
 import csv
 import json
 from datetime import datetime
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Initialize Singletons
+# Initialize Shared Infrastructure (Singletons via ModelRegistry)
 try:
-    ingest_pipeline = IngestionPipeline()
-    retrieval_pipeline = RetrievalPipeline()
-    generation_pipeline = GenerationPipeline()
-    evaluator = RAGEvaluator()
-    logger.info("API Services Initialized.")
+    vs_service = VectorStoreService()
+    ret_service = RetrievalService(vs_service)
+    gen_service = GenerationService()
+    
+    # Initialize Pipelines with shared services
+    ingest_pipeline = IngestionPipeline(vs_service=vs_service)
+    retrieval_pipeline = RetrievalPipeline(vs_service=vs_service, ret_service=ret_service)
+    generation_pipeline = GenerationPipeline(gen_service=gen_service)
+    
+    retrieval_evaluator = RetrievalEvaluator(ret_pipeline=retrieval_pipeline)
+    generation_evaluator = GenerationEvaluator(ret_pipeline=retrieval_pipeline, gen_pipeline=generation_pipeline)
+    
+    logger.info("✅ API Services and Shared Infrastructure Initialized.")
 except Exception as e:
-    logger.critical(f"Failed to initialize API services: {e}")
+    logger.critical(f"❌ Failed to initialize API services: {e}")
     raise e
 
 class QueryRequest(BaseModel):
@@ -44,8 +55,7 @@ async def run_evaluation(request: Optional[EvalRequest] = None):
     """
     logger.info("Evaluation request received.")
     try:
-        # Default evaluation set: Try to load our high-quality 50-sample Agent dataset
-        eval_file = os.path.join(os.getcwd(), "test", "ground_truth.json")
+        eval_file = Settings.EVAL_DATASET_PATH
         
         if not request or not request.test_cases:
             if os.path.exists(eval_file):
@@ -58,18 +68,21 @@ async def run_evaluation(request: Optional[EvalRequest] = None):
                 eval_set = [
                     {
                         "question": "What is RAG methodology?",
-                        "ground_truth": "RAG is a methodology that combines retrieval and generation in large language models to provide factually correct content."
+                        "ground_truth": "RAG is a methodology that combines retrieval and generation in large language models."
                     }
                 ]
         else:
             eval_set = request.test_cases
         
-        results = evaluator.run_evaluation(eval_set)
+        # Run both retrieval and generation evaluation
+        ret_results = retrieval_evaluator.run(eval_set)
+        gen_results = generation_evaluator.run(eval_set)
+        
+        combined_results = {**ret_results, **gen_results}
         
         return {
             "status": "success",
-            "scores": results,
-            "results_file": "test/ragas_evaluation_results.csv"
+            "scores": combined_results
         }
     except Exception as e:
         logger.error(f"Evaluation failed: {e}")
@@ -97,8 +110,8 @@ async def ingest_file(file: UploadFile = File(...)):
         # Run ingestion
         ingest_pipeline.run(temp_dir)
         
-        # Refresh Retrieval Pipeline (e.g., Rebuild BM25 index with new docs)
-        retrieval_pipeline.refresh()
+        # Refresh Retrieval Service (e.g., Rebuild BM25 index with new docs)
+        ret_service.refresh()
         
         # Cleanup temp directory
         shutil.rmtree(temp_dir)

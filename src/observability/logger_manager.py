@@ -4,12 +4,13 @@ import csv
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+
 class SimpleLogger:
     """
     A simple, modular logging system for RAG pipelines.
     Handles directory creation and saves logs in JSON and CSV formats.
     """
-    
+
     BASE_OBSERVABILITY_DIR = "observability"
     BASE_EVALUATION_DIR = "evaluation_logs"
 
@@ -48,9 +49,16 @@ class SimpleLogger:
 
     # --- Observability Logging ---
 
-    def log_retrieval(self, query: str, retrieved_chunks: List[Any], reranked_chunks: List[Any], 
-                      retrieval_scores: List[float], rerank_scores: List[float], latency: float):
-        """Saves retrieval pipeline logs to JSON."""
+    def log_retrieval(
+        self,
+        query: str,
+        retrieved_chunks: List[Any],
+        reranked_chunks: List[Any],
+        retrieval_scores: List[float],
+        rerank_scores: List[float],
+        latency: float,
+    ):
+        """Appends retrieval pipeline logs to a single retrieval_history.jsonl file."""
         log_entry = {
             "query": query,
             "retrieved_chunks": retrieved_chunks,
@@ -58,43 +66,49 @@ class SimpleLogger:
             "retrieval_scores": retrieval_scores,
             "rerank_scores": rerank_scores,
             "retrieval_latency": latency,
-            "timestamp": self._get_timestamp()
+            "timestamp": self._get_timestamp(),
         }
-        filename = f"retrieval_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-        self._save_json(log_entry, os.path.join(self.BASE_OBSERVABILITY_DIR, "retrieval_logs"), filename)
+        
+        folder = os.path.join(self.BASE_OBSERVABILITY_DIR, "retrieval_logs")
+        filepath = os.path.join(folder, "retrieval_history.jsonl")
+        
+        with open(filepath, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
 
-    def log_generation(self, query: str, retrieved_context: str, generated_answer: str, latency: float):
-        """Saves generation pipeline logs to JSON."""
+    def log_generation(
+        self, query: str, retrieved_context: str, generated_answer: str, latency: float
+    ):
+        """Appends generation pipeline logs to a single generation_history.jsonl file."""
         log_entry = {
             "query": query,
             "retrieved_context": retrieved_context,
             "generated_answer": generated_answer,
             "generation_latency": latency,
-            "timestamp": self._get_timestamp()
+            "timestamp": self._get_timestamp(),
         }
-        filename = f"generation_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-        self._save_json(log_entry, os.path.join(self.BASE_OBSERVABILITY_DIR, "generation_logs"), filename)
+        
+        folder = os.path.join(self.BASE_OBSERVABILITY_DIR, "generation_logs")
+        filepath = os.path.join(folder, "generation_history.jsonl")
+        
+        with open(filepath, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
 
     # --- Evaluation Logging ---
 
     def log_retrieval_evaluation(self, eval_data: List[Dict]):
-        """Saves retrieval evaluation results as JSON and CSV."""
+        """Saves retrieval evaluation results as JSON."""
         filename = f"retrieval_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         folder = os.path.join(self.BASE_EVALUATION_DIR, "retrieval_evaluation")
-        
+
         # Save complete JSON
         self._save_json({"results": eval_data}, folder, filename)
-        
-        # Save flat CSV (flattening chunks for readability if needed, but here keeping it simple)
-        self._save_csv(eval_data, folder, filename)
 
     def log_generation_evaluation(self, eval_data: List[Dict]):
-        """Saves generation evaluation results as JSON and CSV."""
+        """Saves generation evaluation results as JSON."""
         filename = f"generation_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         folder = os.path.join(self.BASE_EVALUATION_DIR, "generation_evaluation")
-        
+
         self._save_json({"results": eval_data}, folder, filename)
-        self._save_csv(eval_data, folder, filename)
 
     def log_final_summary(self, summary: Dict):
         """Saves the final evaluation summary as JSON."""
@@ -102,6 +116,7 @@ class SimpleLogger:
         folder = os.path.join(self.BASE_EVALUATION_DIR, "final_summary")
         summary["timestamp"] = self._get_timestamp()
         self._save_json(summary, folder, filename)
+
 
 # Singleton instance for easy import
 logger = SimpleLogger()

@@ -29,6 +29,17 @@ class RAGPipeline:
         """
         # Initialize Core Services (shared across pipelines)
         self.vs_service = vs_service or VectorStoreService()
+        
+        # DEBUG LOGS AS REQUESTED
+        logger.info(f"📍 DB Path: {self.vs_service.persist_directory}")
+        logger.info(f"📊 Loaded Documents: {self.vs_service.count()}")
+        # Accessing internal collection name for verification
+        try:
+            coll_name = self.vs_service.vectorstore._collection.name
+            logger.info(f"📦 Collection Name: {coll_name}")
+        except:
+            logger.info(f"📦 Collection Name: techdoc_collection (default)")
+
         self.ret_service = RetrievalService(self.vs_service)
         self.gen_service = GenerationService()
 

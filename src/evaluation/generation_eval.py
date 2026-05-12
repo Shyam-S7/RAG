@@ -48,9 +48,10 @@ class GenerationEvaluator:
             embeddings=self.evaluator_embeddings,
         )
         df = result.to_pandas()
-        output_dir = Settings.BASE_DIR / "test"
-        os.makedirs(output_dir, exist_ok=True)
-        save_path = output_dir / "generation_evaluation.csv"
-        df.to_csv(save_path, index=False)
-        logger.info(f"✅ Evaluation complete. Results saved to {save_path}")
-        return df.mean(numeric_only=True).to_dict()
+        
+        # Calculate averages
+        averages = df.mean(numeric_only=True).to_dict()
+        # Convert full results to list of dicts for logging
+        detail_results = df.to_dict(orient="records")
+        
+        return averages, detail_results

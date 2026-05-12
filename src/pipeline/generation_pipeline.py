@@ -10,6 +10,7 @@ from src.generation.memory import MemoryManager
 
 logger = logging.getLogger(__name__)
 
+
 class GenerationPipeline:
     """
     Facade for Answer Generation:
@@ -23,7 +24,9 @@ class GenerationPipeline:
         self.memory = MemoryManager()
         logger.info("✅ Generation Pipeline initialized with shared services.")
 
-    def run(self, query: str, context_docs: List[Document], session_id: Optional[str] = None) -> str:
+    def run(
+        self, query: str, context_docs: List[Document], session_id: Optional[str] = None
+    ) -> str:
         """
         Generates an answer using retrieved context and previous conversation history.
         """
@@ -31,10 +34,14 @@ class GenerationPipeline:
         try:
             # 1. Prepare Context
             context_str = "\n\n".join([doc.page_content for doc in context_docs])
-            
+
             # 2. Detect Domain (for prompt styling)
             domain = "general"
-            if context_docs and hasattr(context_docs[0], 'metadata') and "domain" in context_docs[0].metadata:
+            if (
+                context_docs
+                and hasattr(context_docs[0], "metadata")
+                and "domain" in context_docs[0].metadata
+            ):
                 domain = context_docs[0].metadata["domain"]
 
             # 3. Handle Memory (Inject recent history)
@@ -48,28 +55,35 @@ class GenerationPipeline:
 
             # 4. Generate Answer using shared service
             answer = self.gen_service.generate(query, context_docs)
-            
+
             # 5. Update Memory
             if session_id:
                 self.memory.add_message(session_id, "user", query)
                 self.memory.add_message(session_id, "assistant", answer)
 
             latency = time.time() - start_time
-            
+
             # Simple Observability Logging
             from src.observability import logger as obs_logger
+
             obs_logger.log_generation(
                 query=query,
                 retrieved_context=context_str,
                 generated_answer=answer,
-                latency=latency
+                latency=latency,
             )
 
             return answer
 
         except Exception as e:
-            logger.error(f"❌ Generation failed: {e}")
-            return "I'm sorry, I encountered an error while generating the response."
+            import traceback
+
+            logger.error("❌ Generation failed.")
+            logger.error(str(e))
+            logger.error(traceback.format_exc())
+
+            return f"Generation Error: {str(e)}"
+
 
 if __name__ == "__main__":
     # Test script for generation

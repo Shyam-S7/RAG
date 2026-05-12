@@ -13,6 +13,7 @@ class Settings:
     
     # Project Paths
     BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    print(f"DEBUG: BASE_DIR = {BASE_DIR}")
     DATA_DIR = BASE_DIR / "data"
     VECTOR_DB_PATH = os.getenv("VECTOR_DB_PATH", str(DATA_DIR / "chroma_db"))
     EVAL_DATASET_PATH = BASE_DIR / "src" / "evaluation" / "datasets" / "ground_truth.json"

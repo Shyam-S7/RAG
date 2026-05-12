@@ -10,10 +10,19 @@ from src.utils.exception import IngestionError
 
 logger = logging.getLogger(__name__)
 
+
 class IngestionPipeline:
     # File extensions to process
     SUPPORTED_EXTENSIONS = {
-        ".pdf", ".txt", ".md", ".py", ".js", ".java", ".cpp", ".c", ".h",
+        ".pdf",
+        ".txt",
+        ".md",
+        ".py",
+        ".js",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
     }
     # Max file size in MB
     MAX_FILE_SIZE_MB = 50
@@ -60,7 +69,9 @@ class IngestionPipeline:
                     continue
 
                 if not self._check_file_size(fpath):
-                    stats["files_failed"].append({"file": file, "reason": "File too large"})
+                    stats["files_failed"].append(
+                        {"file": file, "reason": "File too large"}
+                    )
                     stats["failed_files"] += 1
                     continue
 
@@ -71,16 +82,24 @@ class IngestionPipeline:
                     file_chunks = self.preprocessor.process_file(fpath)
 
                     if not file_chunks:
-                        stats["files_failed"].append({"file": file, "reason": "No chunks produced"})
+                        stats["files_failed"].append(
+                            {"file": file, "reason": "No chunks produced"}
+                        )
                         stats["failed_files"] += 1
                         continue
 
-                    valid_chunks = [c for c in file_chunks if c.metadata and len(c.page_content.strip()) > 0]
-                    
+                    valid_chunks = [
+                        c
+                        for c in file_chunks
+                        if c.metadata and len(c.page_content.strip()) > 0
+                    ]
+
                     if valid_chunks:
                         all_chunks.extend(valid_chunks)
                         stats["processed_files"] += 1
-                        stats["files_processed"].append({"file": file, "chunks": len(valid_chunks)})
+                        stats["files_processed"].append(
+                            {"file": file, "chunks": len(valid_chunks)}
+                        )
                         logger.info(f"Processed {file}: {len(valid_chunks)} chunks")
 
                 except Exception as e:
@@ -93,6 +112,8 @@ class IngestionPipeline:
         if all_chunks:
             logger.info(f"📥 Total chunks to ingest: {len(all_chunks)}")
             try:
+                logger.info(f"📋 Ingestion Collection: techdoc_collection")
+                logger.info(f"📂 Ingestion DB Path (ABSOLUTE): {os.path.abspath(self.vs_service.persist_directory)}")
                 self.vs_service.add_documents(all_chunks)
                 stats["total_chunks"] = len(all_chunks)
                 logger.info("✅ Ingestion and storage complete.")
@@ -116,10 +137,12 @@ class IngestionPipeline:
         size_mb = os.path.getsize(file_path) / (1024 * 1024)
         return size_mb <= self.MAX_FILE_SIZE_MB
 
+
 if __name__ == "__main__":
     # Test script for ingestion
     import json
     import traceback
+
     pipeline = IngestionPipeline()
     user_file_dir = os.path.join(os.getcwd(), "file")
     if os.path.exists(user_file_dir):

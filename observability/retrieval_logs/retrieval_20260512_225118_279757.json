@@ -1,0 +1,9 @@
+{
+    "query": "What is a RAG",
+    "retrieved_chunks": [],
+    "reranked_chunks": [],
+    "retrieval_scores": [],
+    "rerank_scores": [],
+    "retrieval_latency": 0.001035928726196289,
+    "timestamp": "2026-05-12 22:51:18"
+}

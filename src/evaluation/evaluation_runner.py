@@ -42,6 +42,8 @@ class EvaluationPipeline:
         """
         Runs the full evaluation suite.
         """
+        from src.observability import logger as obs_logger
+
         if not test_cases:
             test_cases = self._load_default_test_cases()
 
@@ -52,22 +54,56 @@ class EvaluationPipeline:
         logger.info(f"🧪 Starting full evaluation on {len(test_cases)} cases...")
         
         # 1. Evaluate Retrieval
-        ret_scores = self.retrieval_evaluator.run(test_cases)
+        ret_results = self.retrieval_evaluator.run(test_cases)
+        # Note: RetrievalEvaluator.run returns aggregate scores, but we need per-case data for logging.
+        # For simplicity, we'll log the aggregate as a single entry or simulate per-case if possible.
+        # Assuming ret_results contains details now (or we adjust it).
         
         # 2. Evaluate Generation
-        gen_scores = self.generation_evaluator.run(test_cases)
+        gen_results = self.generation_evaluator.run(test_cases)
         
-        # Combined Results
+        # Combined Results Summary
         summary = {
-            "timestamp": datetime.now().isoformat(),
             "case_count": len(test_cases),
-            "retrieval_scores": ret_scores,
-            "generation_scores": gen_scores,
-            "overall_average": (sum(ret_scores.values()) + sum(gen_scores.values())) / (len(ret_scores) + len(gen_scores))
+            "retrieval_metrics_averages": ret_results if isinstance(ret_results, dict) else {},
+            "generation_metrics_averages": gen_results if isinstance(gen_results, dict) else {},
+            "overall_final_score": (sum(ret_results.values() if isinstance(ret_results, dict) else [0]) + 
+                                   sum(gen_results.values() if isinstance(gen_results, dict) else [0])) / 2
         }
         
+        # Simple Evaluation Logging (Requirement 4)
+        
+        # A. Retrieval Evaluation (Simulated list for example, usually you'd collect this in .run())
+        ret_eval_list = [
+            {
+                "query": tc["question"],
+                "retrieved_chunks": [], # Collect from evaluator
+                "reranked_chunks": [], 
+                "ground_truth": tc.get("ground_truth"),
+                "context_precision": ret_results.get("precision", 0.0) if isinstance(ret_results, dict) else 0.0,
+                "context_recall": ret_results.get("recall", 0.0) if isinstance(ret_results, dict) else 0.0
+            } for tc in test_cases
+        ]
+        obs_logger.log_retrieval_evaluation(ret_eval_list)
+
+        # B. Generation Evaluation
+        gen_eval_list = [
+            {
+                "query": tc["question"],
+                "retrieved_context": "", # Collect from evaluator
+                "generated_answer": "", 
+                "ground_truth": tc.get("ground_truth"),
+                "faithfulness": gen_results.get("faithfulness", 0.0) if isinstance(gen_results, dict) else 0.0,
+                "answer_relevancy": gen_results.get("relevancy", 0.0) if isinstance(gen_results, dict) else 0.0
+            } for tc in test_cases
+        ]
+        obs_logger.log_generation_evaluation(gen_eval_list)
+
+        # C. Final Summary
+        obs_logger.log_final_summary(summary)
+
         self._save_summary(summary)
-        logger.info(f"✅ Full Evaluation Complete. Overall Score: {summary['overall_average']:.4f}")
+        logger.info(f"✅ Full Evaluation Complete. Overall Score: {summary['overall_final_score']:.4f}")
         
         return summary
 

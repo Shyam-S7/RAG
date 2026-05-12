@@ -27,14 +27,14 @@ from langchain_core.documents import Document as LangchainDocument
 
 
 class Domain(Enum):
-    PROGRAMMING = "programming"
-    DSA = "dsa"
-    SYSTEM_DESIGN = "system_design"
-    IOT = "iot"
-    WEB_DEV = "web_development"
-    ML_AI = "ml_ai"
-    GEN_AI = "gen_ai"
-    DATA_SCIENCE = "data_science"
+    TECH = "tech"
+    AI_ML = "ai_ml"
+    LEGAL = "legal"
+    HEALTHCARE = "healthcare"
+    FINANCE = "finance"
+    RESEARCH = "research"
+    RESUME = "resume"
+    EDUCATION = "education"
     GENERAL = "general"
 
 
@@ -60,78 +60,79 @@ class DomainDetector:
     """Detects technical domain using keywords with word boundaries."""
 
     KEYWORDS = {
-        Domain.PROGRAMMING: [
+        Domain.TECH: [
             "python",
             "java",
-            "c\\+\\+",
-            "function",
-            "class",
-            "import",
-            "def",
-            "return",
-        ],
-        Domain.DSA: [
-            "algorithm",
-            "complexity",
-            "big o",
-            "tree",
-            "graph",
-            "sorting",
-            "dfs",
-            "bfs",
-        ],
-        Domain.SYSTEM_DESIGN: [
-            "scalability",
-            "load balancer",
-            "database",
-            "sharding",
-            "cap theorem",
-            "microservices",
-        ],
-        Domain.IOT: [
-            "sensor",
-            "arduino",
-            "raspberry pi",
-            "mqtt",
-            "esp32",
-            "gpio",
-            "voltage",
-        ],
-        Domain.WEB_DEV: [
-            "http",
             "api",
-            "rest",
+            "database",
             "react",
-            "html",
-            "css",
-            "json",
-            "endpoint",
+            "algorithm",
+            "docker",
+            "cloud",
+            "server",
+            "frontend",
+            "backend",
         ],
-        Domain.ML_AI: [
-            "neural network",
+        Domain.AI_ML: [
+            "machine learning",
+            "deep learning",
             "transformer",
-            "pytorch",
-            "training",
-            "inference",
-            "loss function",
-        ],
-        Domain.GEN_AI: [
+            "neural network",
+            "embedding",
             "llm",
-            "generative",
-            "gpt",
-            "bert",
-            "diffusion",
             "rag",
-            "prompt engineering",
-            "hallucination",
+            "pytorch",
+            "tensorflow",
         ],
-        Domain.DATA_SCIENCE: [
-            "dataframe",
-            "pandas",
-            "visualization",
-            "statistics",
-            "outlier",
-            "regression",
+        Domain.LEGAL: [
+            "court",
+            "judge",
+            "agreement",
+            "contract",
+            "law",
+            "advocate",
+            "clause",
+        ],
+        Domain.HEALTHCARE: [
+            "patient",
+            "diagnosis",
+            "treatment",
+            "prescription",
+            "disease",
+            "doctor",
+            "medical",
+        ],
+        Domain.FINANCE: [
+            "revenue",
+            "profit",
+            "investment",
+            "tax",
+            "balance sheet",
+            "invoice",
+        ],
+        Domain.RESEARCH: [
+            "abstract",
+            "methodology",
+            "results",
+            "conclusion",
+            "experiment",
+            "references",
+        ],
+        Domain.RESUME: [
+            "experience",
+            "skills",
+            "projects",
+            "education",
+            "internship",
+            "linkedin",
+        ],
+        Domain.EDUCATION: [
+            "student",
+            "teacher",
+            "exam",
+            "assignment",
+            "semester",
+            "lecture",
         ],
     }
 
@@ -158,15 +159,42 @@ class Chunker:
     def split(doc: LangchainDocument, domain: Domain) -> List[LangchainDocument]:
         # Domain-specific config
         config = {
-            Domain.PROGRAMMING: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.DSA: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.SYSTEM_DESIGN: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.IOT: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.WEB_DEV: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.ML_AI: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.GEN_AI: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.DATA_SCIENCE: {"chunk_size": 1200, "chunk_overlap": 200},
-            Domain.GENERAL: {"chunk_size": 1200, "chunk_overlap": 200},
+            Domain.TECH: {
+                "chunk_size": 1000,
+                "chunk_overlap": 150,
+            },
+            Domain.AI_ML: {
+                "chunk_size": 1200,
+                "chunk_overlap": 200,
+            },
+            Domain.LEGAL: {
+                "chunk_size": 1600,
+                "chunk_overlap": 300,
+            },
+            Domain.HEALTHCARE: {
+                "chunk_size": 1400,
+                "chunk_overlap": 250,
+            },
+            Domain.FINANCE: {
+                "chunk_size": 1200,
+                "chunk_overlap": 200,
+            },
+            Domain.RESEARCH: {
+                "chunk_size": 1400,
+                "chunk_overlap": 250,
+            },
+            Domain.RESUME: {
+                "chunk_size": 600,
+                "chunk_overlap": 50,
+            },
+            Domain.EDUCATION: {
+                "chunk_size": 1000,
+                "chunk_overlap": 150,
+            },
+            Domain.GENERAL: {
+                "chunk_size": 1000,
+                "chunk_overlap": 150,
+            },
         }
 
         params = config.get(domain, config[Domain.GENERAL])
@@ -295,14 +323,17 @@ if __name__ == "__main__":
     print("=" * 60)
 
     processor = Preprocessor()
-    
+
     # 1. Check if 'file' folder has content
     user_file_dir = os.path.join(os.getcwd(), "file")
     test_files = []
-    
+
     if os.path.exists(user_file_dir):
-        files_in_dir = [os.path.join(user_file_dir, f) for f in os.listdir(user_file_dir) 
-                        if os.path.isfile(os.path.join(user_file_dir, f))]
+        files_in_dir = [
+            os.path.join(user_file_dir, f)
+            for f in os.listdir(user_file_dir)
+            if os.path.isfile(os.path.join(user_file_dir, f))
+        ]
         if files_in_dir:
             print(f"📂 Found {len(files_in_dir)} user files in /file folder.")
             test_files = files_in_dir
@@ -312,7 +343,7 @@ if __name__ == "__main__":
         print("ℹ️ No user files found in /file. Creating dummy test files...")
         test_dir = os.path.join(os.getcwd(), "data", "test_ingestion")
         os.makedirs(test_dir, exist_ok=True)
-        
+
         test_file_path = os.path.join(test_dir, "test_python.txt")
         with open(test_file_path, "w") as f:
             f.write("def test(): print('hello world')\nimport os")
@@ -320,8 +351,9 @@ if __name__ == "__main__":
 
     # 3. Process and Store
     import json
+
     all_test_chunks = []
-    
+
     for test_file in test_files:
         try:
             print(f"\n{'='*60}")
@@ -333,15 +365,17 @@ if __name__ == "__main__":
             if chunks:
                 print(f"✅ Successfully processed '{os.path.basename(test_file)}'")
                 print(f"📦 Total Chunks: {len(chunks)}")
-                
+
                 # Collect for saving
                 for c in chunks:
-                    all_test_chunks.append({
-                        "file": os.path.basename(test_file),
-                        "domain": c.metadata['domain'],
-                        "content": c.page_content
-                    })
-                
+                    all_test_chunks.append(
+                        {
+                            "file": os.path.basename(test_file),
+                            "domain": c.metadata["domain"],
+                            "content": c.page_content,
+                        }
+                    )
+
                 # Show sample chunk
                 print(f"\n📋 Sample Chunk Content (First 150 chars):")
                 print(f"   {chunks[0].page_content[:150]}...")
@@ -356,13 +390,13 @@ if __name__ == "__main__":
         output_path = os.path.join(os.getcwd(), "test")
         os.makedirs(output_path, exist_ok=True)
         file_name = os.path.join(output_path, "preprocessed_chunks.json")
-        
+
         # Limit to 10 chunks as requested by user
         export_data = all_test_chunks[:10]
-        
+
         with open(file_name, "w", encoding="utf-8") as f:
             json.dump(export_data, f, indent=4)
-        
+
         print(f"\n💾 Saved first {len(export_data)} chunks to: {file_name}")
 
     print(f"\n{'='*60}")

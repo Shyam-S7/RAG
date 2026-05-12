@@ -1,5 +1,6 @@
 import hashlib
 import re
+import os
 import logging
 from typing import List, Tuple, Dict, Any
 from rank_bm25 import BM25Okapi
@@ -8,6 +9,7 @@ from src.core.settings import Settings
 from src.core.services import VectorStoreService
 
 logger = logging.getLogger(__name__)
+
 
 class HybridSearch:
     """
@@ -45,8 +47,10 @@ class HybridSearch:
                 Document(page_content=text, metadata=meta)
                 for text, meta in zip(data["documents"], data["metadatas"])
             ]
-            
-            tokenized_corpus = [self._tokenize(doc.page_content) for doc in self.documents]
+
+            tokenized_corpus = [
+                self._tokenize(doc.page_content) for doc in self.documents
+            ]
             self.bm25 = BM25Okapi(tokenized_corpus)
             logger.info(f"✅ BM25 Index built with {len(self.documents)} docs.")
         except Exception as e:
@@ -61,26 +65,32 @@ class HybridSearch:
         if not self.documents:
             logger.warning("⚠️ Search attempted on empty index.")
             return []
-            
+
         # 1. Vector Search (Semantic)
-        vec_results = self.vectorstore.similarity_search_with_score(query, k=k*4)
-        
+        vec_results = self.vectorstore.similarity_search_with_score(query, k=k * 4)
+
         # 2. BM25 Search (Keyword)
         if not self.bm25:
-            return [(doc, {"score": score, "source": "vector"}) for doc, score in vec_results[:k]]
-        
+            return [
+                (doc, {"score": score, "source": "vector"})
+                for doc, score in vec_results[:k]
+            ]
+
         tokenized_query = self._tokenize(query)
-        bm25_results = self.bm25.get_top_n(tokenized_query, self.documents, n=k*4)
-        
+        bm25_results = self.bm25.get_top_n(tokenized_query, self.documents, n=k * 4)
+
         # 3. Fusion
         return self._rrf_fusion(vec_results, bm25_results, k=k)
 
-    def _rrf_fusion(self, vec_results, bm25_results, k=5, c=60) -> List[Tuple[Document, Dict]]:
+    def _rrf_fusion(
+        self, vec_results, bm25_results, k=5, c=60
+    ) -> List[Tuple[Document, Dict]]:
         """Reciprocal Rank Fusion - merges two ranked lists."""
         scores = {}
         doc_map = {}
 
-        def get_key(content): return hashlib.md5(content.encode()).hexdigest()
+        def get_key(content):
+            return hashlib.md5(content.encode()).hexdigest()
 
         for rank, (doc, _) in enumerate(vec_results):
             key = get_key(doc.page_content)
@@ -95,52 +105,55 @@ class HybridSearch:
         sorted_keys = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
         return [(doc_map[key], {"rrf_score": scores[key]}) for key in sorted_keys[:k]]
 
+
 if __name__ == "__main__":
     print("=" * 60)
     print("TESTING HYBRID SEARCH")
     print("=" * 60)
-    
+
     try:
         searcher = HybridSearch()
-        
+
         # Ensure BM25 is up to date with the latest ingestion
         print("\n🔄 Refreshing index...")
         searcher.refresh()
-        
-        test_query = "what is rag"
+
+        test_query = "what is Rag"
         print(f"\n🔍 Searching for: '{test_query}'")
         results = searcher.search(test_query, k=5)
-        
+
         if not results:
             print("❌ No results found. Did you run the ingestion test first?")
         else:
             print(f"✅ Found {len(results)} results.")
             import json
-            
-            output_data = {
-                "query": test_query,
-                "results": []
-            }
-            
+
+            output_data = {"query": test_query, "results": []}
+
             for i, (doc, meta) in enumerate(results):
-                output_data["results"].append({
-                    "rank": i + 1,
-                    "rrf_score": meta.get("rrf_score", 0),
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                })
-            
-            output_file = os.path.join(os.getcwd(), "test", "hybrid_search_results.json")
+                output_data["results"].append(
+                    {
+                        "rank": i + 1,
+                        "rrf_score": meta.get("rrf_score", 0),
+                        "content": doc.page_content,
+                        "metadata": doc.metadata,
+                    }
+                )
+
+            output_file = os.path.join(
+                os.getcwd(), "test", "hybrid_search_results.json"
+            )
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(output_data, f, indent=4)
-                
+
             print(f"💾 Search results saved to: {output_file}")
-            
+
             print("\nPreview of top result:")
             top_doc, top_meta = results[0]
             print(f"📄 Content: {top_doc.page_content[:150]}...")
-                
+
     except Exception as e:
         print(f"❌ Search Error: {e}")
         import traceback
+
         traceback.print_exc()

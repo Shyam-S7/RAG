@@ -1,10 +1,12 @@
 import logging
+import time
 from typing import List, Optional
 from langchain_core.documents import Document
 from src.core.settings import Settings
 from src.core.services import GenerationService
 from src.generation.prompts import PromptManager
 from src.generation.memory import MemoryManager
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ class GenerationPipeline:
         """
         Generates an answer using retrieved context and previous conversation history.
         """
+        start_time = time.time()
         try:
             # 1. Prepare Context
             context_str = "\n\n".join([doc.page_content for doc in context_docs])
@@ -50,6 +53,17 @@ class GenerationPipeline:
             if session_id:
                 self.memory.add_message(session_id, "user", query)
                 self.memory.add_message(session_id, "assistant", answer)
+
+            latency = time.time() - start_time
+            
+            # Simple Observability Logging
+            from src.observability import logger as obs_logger
+            obs_logger.log_generation(
+                query=query,
+                retrieved_context=context_str,
+                generated_answer=answer,
+                latency=latency
+            )
 
             return answer
 

@@ -1,11 +1,14 @@
 import logging
+import time
 from typing import List
 from langchain_core.documents import Document
 from src.core.settings import Settings
 from src.core.services import VectorStoreService, RetrievalService
 from src.core.models import ModelRegistry
 
+
 logger = logging.getLogger(__name__)
+
 
 class RetrievalPipeline:
     """
@@ -14,7 +17,11 @@ class RetrievalPipeline:
     2. Hybrid Retrieval & Reranking (via core.services)
     """
 
-    def __init__(self, vs_service: VectorStoreService = None, ret_service: RetrievalService = None):
+    def __init__(
+        self,
+        vs_service: VectorStoreService = None,
+        ret_service: RetrievalService = None,
+    ):
         self.vs_service = vs_service or VectorStoreService()
         self.ret_service = ret_service or RetrievalService(self.vs_service)
         self.llm = ModelRegistry.get_llm()
@@ -24,7 +31,7 @@ class RetrievalPipeline:
         """Transforms shorthand queries into standalone search queries based on history."""
         if not history:
             return query
-            
+
         history_str = ""
         for msg in history[-3:]:
             role = "User" if msg["role"] == "user" else "Assistant"
@@ -44,7 +51,7 @@ class RetrievalPipeline:
         FOLLOW-UP QUESTION: {query}
         
         STANDALONE SEARCH QUERY:"""
-        
+
         try:
             rewritten = self.llm.invoke(prompt).content
             clean_query = rewritten.strip().strip('"').strip("'")
@@ -54,30 +61,50 @@ class RetrievalPipeline:
             logger.error(f"❌ Query rewrite failed: {e}")
             return query
 
-    def run(self, query: str, k: int = Settings.TOP_K_RETRIEVAL, history: List[dict] = None) -> List[Document]:
+    def run(
+        self, query: str, k: int = Settings.TOP_K_RETRIEVAL, history: List[dict] = None
+    ) -> List[Document]:
         """
         Executes the end-to-end retrieval flow with optional query rewriting.
         """
+        start_time = time.time()
+        
         # 1. Rewrite Query if history exists
         search_query = self._rewrite_query(query, history) if history else query
-        
+
         logger.info(f"🚀 Pipeline running retrieval for: '{search_query}'")
-        
+
         try:
-            # Stage: Retrieve and Rerank (using centralized service)
+            # Stage: Retrieve and Rerank
             final_docs = self.ret_service.retrieve(search_query, top_k=k)
+
+            latency = time.time() - start_time
             
-            logger.info(f"✅ Pipeline complete. Returning {len(final_docs)} optimized documents.")
+            # Simple Observability Logging
+            from src.observability import logger as obs_logger
+            obs_logger.log_retrieval(
+                query=search_query,
+                retrieved_chunks=[doc.page_content for doc in final_docs],
+                reranked_chunks=[doc.page_content for doc in final_docs], # Assuming retrieve() does reranking
+                retrieval_scores=[doc.metadata.get("score", 0.0) for doc in final_docs],
+                rerank_scores=[doc.metadata.get("rerank_score", 0.0) for doc in final_docs],
+                latency=latency
+            )
+
+            logger.info(
+                f"✅ Pipeline complete. Returning {len(final_docs)} optimized documents."
+            )
             return final_docs
 
         except Exception as e:
             logger.error(f"❌ Pipeline execution failed: {e}")
             return []
 
+
 if __name__ == "__main__":
     # Test script for retrieval
     pipeline = RetrievalPipeline()
-    test_query = "what is RAG paradigms?"
+    test_query = "what is RAG?"
     results = pipeline.run(test_query, k=3)
     for i, doc in enumerate(results):
         print(f"[{i+1}] {doc.page_content[:100]}...")

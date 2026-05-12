@@ -4,7 +4,7 @@
     "ground_truth": "RAG stands for Retrieval-Augmented Generation."
   },
   {
-    "question": "What is machine learning?",
-    "ground_truth": "Machine learning is a subset of AI."
-  }
+    "question": "What is rag types?",
+    "ground_truth": "Naive RAG, Advanced RAG, Module RAG."
+  } 
 ]

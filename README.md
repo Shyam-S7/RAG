@@ -48,12 +48,14 @@ streamlit run src/ui.py
 
 ## 🧪 Testing the Pipelines
 
+
 Each component can be tested individually using the built-in test blocks:
 
 1. **Ingestion**: `python -m src.pipeline.ingestion_pipeline`
 2. **Retrieval**: `python -m src.pipeline.retrieval_pipeline`
 3. **Generation**: `python -m src.pipeline.generation_pipeline`
 4. **Evaluation**: `python -m src.evaluation.evaluation_runner`
+5. **RAG**: `python -m src.pipeline.rag_pipeline`
 
 
 Full test results and intermediate states are saved in the `test/` directory for verification.
@@ -71,5 +73,5 @@ Full test results and intermediate states are saved in the `test/` directory for
 
 - .\venv\Scripts\activate 
 
-write Retrieval evaluation code and generation evaluation code both code and right there evaluation pipeline also
+
 

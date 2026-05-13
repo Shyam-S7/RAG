@@ -81,7 +81,6 @@ class EvaluationPipeline:
         obs_logger.log_generation_evaluation(gen_details)
         obs_logger.log_final_summary(summary)
 
-        self._save_summary(summary)
         logger.info(
             f"✅ Full Evaluation Complete. Overall Score: {summary['overall_final_score']:.4f}"
         )
@@ -99,12 +98,6 @@ class EvaluationPipeline:
                 ]
         logger.warning(f"⚠️ Evaluation file not found at: {eval_file}")
         return []
-
-    def _save_summary(self, summary: Dict[str, Any]):
-        output_path = Settings.BASE_DIR / "test" / "evaluation_summary.json"
-        os.makedirs(output_path.parent, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=4)
 
 
 if __name__ == "__main__":

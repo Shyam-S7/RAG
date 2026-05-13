@@ -1,11 +1,11 @@
 /**
- * RAG Assistant - Frontend Logic
- * Production-ready vanilla JS implementation
+ * AI Assistant - Frontend Logic
+ * ChatGPT-style RAG implementation
  */
 
 class ChatStore {
     constructor() {
-        this.storageKey = 'rag_assistant_history';
+        this.storageKey = 'rag_assistant_history_v2';
         this.chats = JSON.parse(localStorage.getItem(this.storageKey)) || [];
         this.currentChatId = null;
     }
@@ -37,22 +37,19 @@ class ChatStore {
             chat.messages.push({ role, content, sources, timestamp: new Date().toISOString() });
             // Update title if it's the first user message
             if (role === 'user' && chat.messages.filter(m => m.role === 'user').length === 1) {
-                chat.title = content.substring(0, 30) + (content.length > 30 ? '...' : '');
+                chat.title = content.substring(0, 35) + (content.length > 35 ? '...' : '');
             }
             this.save();
         }
-    }
-
-    deleteChat(id) {
-        this.chats = this.chats.filter(c => c.id !== id);
-        if (this.currentChatId === id) this.currentChatId = null;
-        this.save();
     }
 }
 
 class ChatUI {
     constructor(store) {
         this.store = store;
+        this.selectedFile = null;
+        this.isProcessing = false;
+        
         this.elements = {
             sidebar: document.getElementById('sidebar'),
             historyContainer: document.getElementById('chat-history'),
@@ -62,7 +59,14 @@ class ChatUI {
             sendBtn: document.getElementById('send-btn'),
             newChatBtn: document.getElementById('new-chat-btn'),
             mobileMenuBtn: document.getElementById('mobile-menu-btn'),
-            msgTemplate: document.getElementById('message-template')
+            msgTemplate: document.getElementById('message-template'),
+            uploadBtn: document.getElementById('upload-btn'),
+            fileInput: document.getElementById('file-upload'),
+            uploadStatus: document.getElementById('upload-status'),
+            fileNameDisplay: document.getElementById('file-name-display'),
+            removeFileBtn: document.getElementById('remove-file-btn'),
+            processBtn: document.getElementById('process-btn'),
+            dragOverlay: document.getElementById('drag-overlay')
         };
 
         this.init();
@@ -94,12 +98,121 @@ class ChatUI {
         this.elements.mobileMenuBtn.addEventListener('click', () => {
             this.elements.sidebar.classList.toggle('open');
         });
+
+        // Upload Events
+        this.elements.uploadBtn.addEventListener('click', () => this.elements.fileInput.click());
+        
+        this.elements.fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        this.elements.removeFileBtn.addEventListener('click', () => this.clearFile());
+        this.elements.processBtn.addEventListener('click', () => this.handleProcess());
+
+        // Drag and Drop
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.elements.dragOverlay.classList.add('active');
+        });
+
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if (e.relatedTarget === null) {
+                this.elements.dragOverlay.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.elements.dragOverlay.classList.remove('active');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                this.handleFileSelect(files[0]);
+            }
+        });
+
+        // Suggestions
+        document.querySelectorAll('.suggestion-card').forEach(card => {
+            card.addEventListener('click', () => {
+                this.elements.userInput.value = card.textContent;
+                this.elements.userInput.focus();
+                this.elements.sendBtn.disabled = false;
+                this.autoResizeTextarea();
+            });
+        });
+    }
+
+    handleFileSelect(file) {
+        // Validate file type
+        const allowedTypes = ['.pdf', '.txt', '.md'];
+        const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        
+        if (!allowedTypes.includes(extension)) {
+            alert('Invalid file type. Please upload PDF, TXT, or MD files.');
+            return;
+        }
+
+        this.selectedFile = file;
+        this.elements.fileNameDisplay.textContent = file.name;
+        this.elements.uploadStatus.classList.remove('hidden');
+        this.elements.processBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Process
+        `;
+        this.elements.processBtn.classList.remove('loading');
+        this.elements.processBtn.disabled = false;
+    }
+
+    async handleProcess() {
+        if (!this.selectedFile || this.isProcessing) return;
+
+        this.isProcessing = true;
+        this.elements.processBtn.disabled = true;
+        this.elements.processBtn.classList.add('loading');
+        this.elements.processBtn.innerHTML = '<span class="loader"></span> Ingesting...';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', this.selectedFile);
+
+            const response = await fetch('http://localhost:8000/api/ingest/', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Ingestion failed');
+
+            const data = await response.json();
+            
+            this.elements.processBtn.innerHTML = '✅ Done';
+            setTimeout(() => {
+                this.clearFile();
+                this.appendMessageToUI('bot', `Successfully ingested "${data.message || 'your document'}". You can now ask questions about it.`);
+            }, 1000);
+
+        } catch (error) {
+            console.error(error);
+            alert('Processing failed: ' + error.message);
+            this.elements.processBtn.innerHTML = '❌ Failed';
+            this.elements.processBtn.disabled = false;
+        } finally {
+            this.isProcessing = false;
+            this.elements.processBtn.classList.remove('loading');
+        }
+    }
+
+    clearFile() {
+        this.selectedFile = null;
+        this.elements.fileInput.value = '';
+        this.elements.uploadStatus.classList.add('hidden');
     }
 
     autoResizeTextarea() {
         const textarea = this.elements.userInput;
         textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
     }
 
     startNewChat() {
@@ -112,6 +225,8 @@ class ChatUI {
     loadLastChat() {
         if (this.store.chats.length > 0) {
             this.switchChat(this.store.chats[0].id);
+        } else {
+            this.startNewChat();
         }
     }
 
@@ -119,7 +234,6 @@ class ChatUI {
         this.store.currentChatId = id;
         const chat = this.store.getChat(id);
         
-        // Update Sidebar active state
         document.querySelectorAll('.history-item').forEach(item => {
             item.classList.toggle('active', item.dataset.id === id);
         });
@@ -161,31 +275,40 @@ class ChatUI {
         const msgDiv = clone.querySelector('.message');
         msgDiv.classList.add(role);
         
+        const authorSpan = clone.querySelector('.msg-author');
+        authorSpan.textContent = role === 'user' ? 'You' : 'RAG Assistant';
+
         const textDiv = clone.querySelector('.message-text');
         textDiv.textContent = content;
 
         if (sources && sources.length > 0) {
-            const sourcesContainer = clone.querySelector('.sources-container');
-            sourcesContainer.classList.remove('hidden');
+            const container = clone.querySelector('.sources-container');
+            container.classList.remove('hidden');
             
             const toggle = clone.querySelector('.sources-toggle');
-            toggle.textContent = `Sources (${sources.length})`;
+            toggle.innerHTML = `
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+                Sources Used (${sources.length})
+            `;
             
             const list = clone.querySelector('.sources-list');
             sources.forEach(src => {
-                const srcItem = document.createElement('div');
-                srcItem.className = 'source-item';
-                srcItem.innerHTML = `
+                const item = document.createElement('div');
+                item.className = 'source-item';
+                item.innerHTML = `
                     <div class="source-meta">
-                        <span class="source-domain">${src.domain}</span>
+                        <span class="source-domain">${src.domain || 'Doc'}</span>
                         <span class="source-file">${src.source}</span>
                     </div>
-                    <div class="source-text">${src.content.substring(0, 150)}...</div>
+                    <div class="source-text">${src.content}</div>
                 `;
-                list.appendChild(srcItem);
+                list.appendChild(item);
             });
 
-            toggle.addEventListener('click', () => list.classList.toggle('hidden'));
+            toggle.addEventListener('click', () => {
+                list.classList.toggle('hidden');
+                toggle.querySelector('svg').style.transform = list.classList.contains('hidden') ? '' : 'rotate(180deg)';
+            });
         }
 
         this.elements.chatContainer.appendChild(clone);
@@ -197,6 +320,10 @@ class ChatUI {
         div.className = 'message bot thinking-indicator';
         div.innerHTML = `
             <div class="message-content">
+                <div class="message-header">
+                    <div class="msg-avatar"></div>
+                    <span class="msg-author">RAG Assistant</span>
+                </div>
                 <div class="thinking">
                     <div class="dot"></div>
                     <div class="dot"></div>
@@ -217,57 +344,44 @@ class ChatUI {
         const query = this.elements.userInput.value.trim();
         if (!query) return;
 
-        // Ensure we have a chat started
-        if (!this.store.currentChatId) {
-            this.startNewChat();
-        }
-
+        if (!this.store.currentChatId) this.startNewChat();
         const chatId = this.store.currentChatId;
 
-        // Clear input
+        // Reset UI
         this.elements.userInput.value = '';
         this.elements.userInput.style.height = 'auto';
         this.elements.sendBtn.disabled = true;
         this.elements.welcomeScreen.classList.add('hidden');
 
-        // Add user message
+        // Add user message to UI
         this.store.addMessage(chatId, 'user', query);
         this.appendMessageToUI('user', query);
         this.renderHistory();
 
-        // Show thinking
         const thinkingIndicator = this.showThinkingIndicator();
 
         try {
-            const response = await fetch('http://localhost:8000/chat', {
+            const response = await fetch('http://localhost:8000/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    query: query,
-                    session_id: chatId 
-                })
+                body: JSON.stringify({ query, session_id: chatId })
             });
 
-            if (!response.ok) throw new Error('API request failed');
-
+            if (!response.ok) throw new Error('Chat API failed');
             const data = await response.json();
             
-            // Remove thinking
             thinkingIndicator.remove();
-
-            // Add bot message
             this.store.addMessage(chatId, 'bot', data.answer, data.sources);
             this.appendMessageToUI('bot', data.answer, data.sources);
 
         } catch (error) {
-            if (thinkingIndicator) thinkingIndicator.remove();
-            this.appendMessageToUI('bot', 'Sorry, I encountered an error connecting to the RAG server. Please ensure the backend is running.');
-            console.error('Chat Error:', error);
+            thinkingIndicator.remove();
+            this.appendMessageToUI('bot', `Error: ${error.message}. Please ensure the backend is running at http://localhost:8000`);
+            console.error(error);
         }
     }
 }
 
-// Initialize App
 document.addEventListener('DOMContentLoaded', () => {
     const store = new ChatStore();
     const ui = new ChatUI(store);

@@ -186,7 +186,7 @@ async def search_documents(request: QueryRequest):
         
         # 3. Log to History CSV
         try:
-            log_dir = os.path.join(os.getcwd(), "test")
+            log_dir = os.path.join(os.getcwd(), "observability", "chat_history")
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(log_dir, "chat_history.csv")
             

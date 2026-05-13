@@ -18,10 +18,17 @@ class SimpleLogger:
         self._setup_directories()
 
     def _setup_directories(self):
-        """Creates the necessary folder structure."""
+        """Creates the observability folder structure."""
         folders = [
             os.path.join(self.BASE_OBSERVABILITY_DIR, "retrieval_logs"),
             os.path.join(self.BASE_OBSERVABILITY_DIR, "generation_logs"),
+        ]
+        for folder in folders:
+            os.makedirs(folder, exist_ok=True)
+
+    def _setup_evaluation_directories(self):
+        """Creates the evaluation folder structure ONLY when needed."""
+        folders = [
             os.path.join(self.BASE_EVALUATION_DIR, "retrieval_evaluation"),
             os.path.join(self.BASE_EVALUATION_DIR, "generation_evaluation"),
             os.path.join(self.BASE_EVALUATION_DIR, "final_summary"),
@@ -97,6 +104,7 @@ class SimpleLogger:
 
     def log_retrieval_evaluation(self, eval_data: List[Dict]):
         """Saves retrieval evaluation results as JSON."""
+        self._setup_evaluation_directories()
         filename = f"retrieval_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         folder = os.path.join(self.BASE_EVALUATION_DIR, "retrieval_evaluation")
 
@@ -105,6 +113,7 @@ class SimpleLogger:
 
     def log_generation_evaluation(self, eval_data: List[Dict]):
         """Saves generation evaluation results as JSON."""
+        self._setup_evaluation_directories()
         filename = f"generation_eval_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         folder = os.path.join(self.BASE_EVALUATION_DIR, "generation_evaluation")
 
@@ -112,6 +121,7 @@ class SimpleLogger:
 
     def log_final_summary(self, summary: Dict):
         """Saves the final evaluation summary as JSON."""
+        self._setup_evaluation_directories()
         filename = f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         folder = os.path.join(self.BASE_EVALUATION_DIR, "final_summary")
         summary["timestamp"] = self._get_timestamp()

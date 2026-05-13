@@ -1,5 +1,6 @@
 import logging
 import hashlib
+import os
 from typing import List, Any, Optional
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -15,8 +16,14 @@ logger = get_logger(__name__)
 class VectorStoreService:
     """Service to handle interactions with ChromaDB (Storage and Search)."""
 
-    def __init__(self, persist_directory: str = Settings.VECTOR_DB_PATH):
-        self.persist_directory = persist_directory
+    def __init__(self, session_id: Optional[str] = None):
+        if session_id:
+            self.persist_directory = os.path.join(
+                os.getcwd(), "vector_store", session_id
+            )
+        else:
+            self.persist_directory = Settings.VECTOR_DB_PATH
+
         # Use the shared embedding model from the registry
         self.embeddings = ModelRegistry.get_embedding_model()
         self._vectorstore = None
@@ -25,25 +32,28 @@ class VectorStoreService:
     def vectorstore(self) -> Chroma:
         if self._vectorstore is None:
             db_path = str(self.persist_directory)
-            logger.info(f"📂 Connecting to Vector Store at: {db_path}")
+            logger.info(f"📂 Connecting to Isolated Vector Store at: {db_path}")
             import chromadb
             from chromadb.config import Settings as ChromaSettings
-            
+
+            # Ensure directory exists
+            os.makedirs(db_path, exist_ok=True)
+
             # Explicit persistent client with telemetry disabled
             client = chromadb.PersistentClient(
-                path=db_path,
-                settings=ChromaSettings(anonymized_telemetry=False)
+                path=db_path, settings=ChromaSettings(anonymized_telemetry=False)
             )
-            
+
+            # Use a consistent collection name within the isolated directory
             self._vectorstore = Chroma(
                 client=client,
-                collection_name="techdoc_collection",
-                embedding_function=self.embeddings
+                collection_name="session_collection",
+                embedding_function=self.embeddings,
             )
             # Use internal count to avoid recursion and potential crashes during init
             try:
                 count = self._vectorstore._collection.count()
-                logger.info(f"📊 Current DB Count (Initial): {count}")
+                logger.info(f"📊 Current Session DB Count: {count}")
             except Exception as e:
                 logger.warning(f"⚠️ Could not get initial DB count: {e}")
         return self._vectorstore
@@ -64,7 +74,9 @@ class VectorStoreService:
             existing = self.vectorstore.get(ids=ids)
             existing_ids = set(existing.get("ids") or [])
         except Exception as e:
-            logger.warning(f"⚠️ Failed to check existing documents: {e}. Proceeding with all.")
+            logger.warning(
+                f"⚠️ Failed to check existing documents: {e}. Proceeding with all."
+            )
             existing_ids = set()
 
         new_docs = []
@@ -75,11 +87,22 @@ class VectorStoreService:
                 new_ids.append(doc_id)
 
         if new_docs:
-            logger.info(f"📥 Adding {len(new_docs)} new documents to ChromaDB...")
-            self.vectorstore.add_documents(documents=new_docs, ids=new_ids)
+            batch_size = 100
+            logger.info(
+                f"📥 Adding {len(new_docs)} new documents in batches of {batch_size}..."
+            )
+
+            for i in range(0, len(new_docs), batch_size):
+                batch_docs = new_docs[i : i + batch_size]
+                batch_ids = new_ids[i : i + batch_size]
+
+                self.vectorstore.add_documents(documents=batch_docs, ids=batch_ids)
+
             logger.info(f"✅ Documents added. FINAL DB COUNT: {self.count()}")
         else:
-            logger.info(f"ℹ️ All documents already exist. FINAL DB COUNT: {self.count()}")
+            logger.info(
+                f"ℹ️ All documents already exist. FINAL DB COUNT: {self.count()}"
+            )
 
     def _generate_id(self, content: str, source: str) -> str:
         composite = f"{source}_{content}"

@@ -112,7 +112,7 @@ class IngestionPipeline:
         if all_chunks:
             logger.info(f"📥 Total chunks to ingest: {len(all_chunks)}")
             try:
-                logger.info(f"📋 Ingestion Collection: techdoc_collection")
+                logger.info(f"📋 Ingestion started for isolated collection")
                 logger.info(f"📂 Ingestion DB Path (ABSOLUTE): {os.path.abspath(self.vs_service.persist_directory)}")
                 self.vs_service.add_documents(all_chunks)
                 stats["total_chunks"] = len(all_chunks)

@@ -42,6 +42,27 @@ class ChatStore {
             this.save();
         }
     }
+
+    updateChatId(oldId, newId) {
+        const chat = this.getChat(oldId);
+        if (chat) {
+            chat.id = newId;
+            if (this.currentChatId === oldId) {
+                this.currentChatId = newId;
+            }
+            this.save();
+            return true;
+        }
+        return false;
+    }
+
+    deleteChat(id) {
+        this.chats = this.chats.filter(c => c.id !== id);
+        if (this.currentChatId === id) {
+            this.currentChatId = this.chats.length > 0 ? this.chats[0].id : null;
+        }
+        this.save();
+    }
 }
 
 class ChatUI {
@@ -185,11 +206,17 @@ class ChatUI {
             if (!response.ok) throw new Error('Ingestion failed');
 
             const data = await response.json();
+            const backendSessionId = data.session_id;
+
+            // Adopt the backend's session_id for this conversation
+            const currentId = this.store.currentChatId;
+            this.store.updateChatId(currentId, backendSessionId);
+            this.renderHistory();
             
             this.elements.processBtn.innerHTML = '✅ Done';
             setTimeout(() => {
                 this.clearFile();
-                this.appendMessageToUI('bot', `Successfully ingested "${data.message || 'your document'}". You can now ask questions about it.`);
+                this.appendMessageToUI('bot', `Successfully ingested "${this.selectedFile.name}". You can now ask questions about its content in this isolated session.`);
             }, 1000);
 
         } catch (error) {
@@ -231,6 +258,10 @@ class ChatUI {
     }
 
     switchChat(id) {
+        if (!id) {
+            this.startNewChat();
+            return;
+        }
         this.store.currentChatId = id;
         const chat = this.store.getChat(id);
         
@@ -239,6 +270,36 @@ class ChatUI {
         });
 
         this.renderMessages(chat.messages);
+    }
+
+    async handleDeleteChat(id, event) {
+        event.stopPropagation();
+        if (!confirm('Are you sure you want to delete this conversation and its associated data?')) return;
+
+        try {
+            // 1. Delete from Backend
+            const res = await fetch(`http://localhost:8000/api/session/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!res.ok) {
+                console.warn('Backend session deletion failed or not found. Removing locally anyway.');
+            }
+
+            // 2. Delete from Store
+            this.store.deleteChat(id);
+            
+            // 3. UI Update
+            this.renderHistory();
+            this.switchChat(this.store.currentChatId);
+
+        } catch (err) {
+            console.error('Deletion error:', err);
+            // Fallback: Delete locally anyway if backend fails
+            this.store.deleteChat(id);
+            this.renderHistory();
+            this.switchChat(this.store.currentChatId);
+        }
     }
 
     renderHistory() {
@@ -250,8 +311,15 @@ class ChatUI {
             item.innerHTML = `
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 <span>${chat.title}</span>
+                <button class="delete-chat-btn" title="Delete conversation">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             `;
             item.addEventListener('click', () => this.switchChat(chat.id));
+            
+            const delBtn = item.querySelector('.delete-chat-btn');
+            delBtn.addEventListener('click', (e) => this.handleDeleteChat(chat.id, e));
+            
             this.elements.historyContainer.appendChild(item);
         });
     }

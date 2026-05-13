@@ -24,13 +24,13 @@ class RAGPipeline:
     - Simplifies dependency management through the core/ module.
     """
 
-    def __init__(self, vs_service: VectorStoreService = None):
+    def __init__(self, session_id: Optional[str] = None, vs_service: VectorStoreService = None):
         """
         Initializes the RAG pipeline using shared core services.
         Dependencies are injected to allow for flexible reuse and testing.
         """
         # Initialize Core Services (shared across pipelines)
-        self.vs_service = vs_service or VectorStoreService()
+        self.vs_service = vs_service or VectorStoreService(session_id=session_id)
         
         # DEBUG LOGS AS REQUESTED
         logger.info(f"📍 DB Path: {self.vs_service.persist_directory}")
@@ -38,9 +38,9 @@ class RAGPipeline:
         # Accessing internal collection name for verification
         try:
             coll_name = self.vs_service.vectorstore._collection.name
-            logger.info(f"📦 Collection Name: {coll_name}")
+            logger.info(f"📦 Isolated Collection: {coll_name}")
         except:
-            logger.info(f"📦 Collection Name: techdoc_collection (default)")
+            logger.info(f"📦 Isolated Collection: session_collection (default)")
 
         self.ret_service = RetrievalService(self.vs_service)
         self.gen_service = GenerationService()

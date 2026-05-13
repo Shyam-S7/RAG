@@ -5,6 +5,8 @@ from src.core.settings import Settings
 from src.core.services import VectorStoreService, RetrievalService, GenerationService
 from src.pipeline.retrieval_pipeline import RetrievalPipeline
 from src.pipeline.generation_pipeline import GenerationPipeline
+from src.pipeline.ingestion_pipeline import IngestionPipeline
+import os
 
 
 from src.utils.logging import get_logger
@@ -48,8 +50,12 @@ class RAGPipeline:
             vs_service=self.vs_service, ret_service=self.ret_service
         )
         self.generation_pipeline = GenerationPipeline(gen_service=self.gen_service)
+        self.ingestion_pipeline = IngestionPipeline(vs_service=self.vs_service)
 
         logger.info("✅ RAG Pipeline initialized with shared core infrastructure.")
+        
+        # Automatically ensure ingestion if DB is empty
+        self._ensure_ingestion()
 
     def run(self, query: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -90,6 +96,34 @@ class RAGPipeline:
                 for doc in retrieved_docs
             ],
         }
+
+    def _ensure_ingestion(self):
+        """
+        Checks if the vector store is empty and triggers ingestion if needed.
+        """
+        count = self.vs_service.count()
+        if count == 0:
+            logger.info("⚠️ Vector store is empty. Triggering automatic ingestion...")
+            
+            # Default ingestion directory is 'file' in the root
+            data_dir = os.path.join(os.getcwd(), "file")
+            
+            if not os.path.exists(data_dir):
+                logger.warning(f"❌ Ingestion directory not found: {data_dir}")
+                return
+
+            try:
+                stats = self.ingestion_pipeline.run(data_dir)
+                if stats.get("success"):
+                    logger.info(f"✅ Auto-ingestion complete. Added {stats['total_chunks']} chunks.")
+                    # Refresh retrieval indices after ingestion
+                    self.ret_service.refresh()
+                else:
+                    logger.error(f"❌ Auto-ingestion failed: {stats.get('error')}")
+            except Exception as e:
+                logger.error(f"❌ Critical error during auto-ingestion: {e}")
+        else:
+            logger.info(f"📊 Vector store already contains {count} documents. Skipping auto-ingestion.")
 
 
 if __name__ == "__main__":

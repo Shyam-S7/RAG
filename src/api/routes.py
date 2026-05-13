@@ -45,6 +45,10 @@ class QueryRequest(BaseModel):
     k: int = 5
     session_id: Optional[str] = None
 
+class ChatRequest(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+
 class EvalRequest(BaseModel):
     test_cases: Optional[List[Dict[str, str]]] = None
 
@@ -122,6 +126,43 @@ async def ingest_file(file: UploadFile = File(...)):
         }
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    """
+    Standard chat endpoint for the frontend.
+    Matches the required POST /chat schema.
+    """
+    logger.info(f"Chat request: '{request.query}'")
+    try:
+        # Load history for query rewriting if session_id provided
+        history = []
+        if request.session_id:
+            history = generation_pipeline.memory.get_history(request.session_id)
+            
+        # 1. Execute Retrieval Pipeline
+        # Using a default k=5 as requested by standard RAG behavior
+        final_docs = retrieval_pipeline.run(request.query, k=5, history=history)
+        
+        # 2. Execute Generation Pipeline
+        answer = generation_pipeline.run(request.query, final_docs, session_id=request.session_id)
+        
+        # 3. Format Sources
+        sources = [
+            {
+                "source": doc.metadata.get('source', 'N/A'),
+                "content": doc.page_content,
+                "domain": doc.metadata.get('domain', 'Technical Documentation')
+            } for doc in final_docs
+        ]
+        
+        return {
+            "answer": answer,
+            "sources": sources
+        }
+    except Exception as e:
+        logger.error(f"Chat API failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/search/")

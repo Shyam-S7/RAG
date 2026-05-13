@@ -27,16 +27,25 @@ class VectorStoreService:
             db_path = str(self.persist_directory)
             logger.info(f"📂 Connecting to Vector Store at: {db_path}")
             import chromadb
+            from chromadb.config import Settings as ChromaSettings
             
-            # Explicit persistent client
-            client = chromadb.PersistentClient(path=db_path)
+            # Explicit persistent client with telemetry disabled
+            client = chromadb.PersistentClient(
+                path=db_path,
+                settings=ChromaSettings(anonymized_telemetry=False)
+            )
             
             self._vectorstore = Chroma(
                 client=client,
                 collection_name="techdoc_collection",
                 embedding_function=self.embeddings
             )
-            logger.info(f"📊 Current DB Count (Initial): {self.count()}")
+            # Use internal count to avoid recursion and potential crashes during init
+            try:
+                count = self._vectorstore._collection.count()
+                logger.info(f"📊 Current DB Count (Initial): {count}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get initial DB count: {e}")
         return self._vectorstore
 
     def add_documents(self, documents: List[Document]):
@@ -77,7 +86,12 @@ class VectorStoreService:
         return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
 
     def count(self) -> int:
-        return self.vectorstore._collection.count()
+        """Returns the number of documents in the collection, safely handling potential metadata errors."""
+        try:
+            return self.vectorstore._collection.count()
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to get document count from ChromaDB: {e}")
+            return 0
 
 
 class RetrievalService:

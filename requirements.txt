@@ -26,7 +26,6 @@ unstructured
 # API / UI
 fastapi
 uvicorn
-streamlit
 
 # Others
 python-dotenv

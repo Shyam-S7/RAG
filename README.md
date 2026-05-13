@@ -9,7 +9,8 @@ TechDocAI is a modular, high-performance Retrieval-Augmented Generation (RAG) as
 - **Context Optimization**: Implements redundancy filtering, context compression, and attention-based reordering (Lost-in-the-Middle fix).
 - **Session Memory**: Intelligent conversation history management with automatic message trimming.
 - **API**: Built with **FastAPI** for high performance and scalability.
-- **Real time UI**: Clean **Streamlit** interface for easy document ingestion and chat.
+- **API**: Built with **FastAPI** for high performance and scalability.
+- **Web UI**: Modern ChatGPT-style interface (HTML/CSS/JS) for seamless interaction.
 
 ## 🛠️ Tech Stack
 
@@ -17,7 +18,7 @@ TechDocAI is a modular, high-performance Retrieval-Augmented Generation (RAG) as
 - **Embeddings**: BGE-Small-EN-v1.5 
 - **Vector DB**: ChromaDB
 - **Backend**: FastAPI
-- **Frontend**: Streamlit
+- **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **Logic**: LangChain
 
 ## 📦 Installation
@@ -42,9 +43,8 @@ python src/main.py
 *The API will be available at `http://localhost:8000`*
 
 ### 2. Start the Frontend UI
-```bash
-streamlit run src/ui.py
-```
+Simply open `frontend/index.html` in your browser.
+Alternatively, use a local server (e.g., Live Server in VS Code at `http://localhost:5500`).
 
 ## 🧪 Testing the Pipelines
 
@@ -67,7 +67,7 @@ Full test results and intermediate states are saved in the `test/` directory for
 - `src/generation`: LLM interaction, prompt management, and memory.
 - `src/pipeline`: End-to-end coordination of ingestion, retrieval, and generation.
 - `src/api`: FastAPI route definitions.
-- `src/ui.py`: Streamlit interface.
+- `frontend/`: ChatGPT-style web interface.
 - `test/`: JSON logs of system performance and results.
 
 

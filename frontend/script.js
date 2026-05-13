@@ -175,7 +175,13 @@ class ChatUI {
             sources.forEach(src => {
                 const srcItem = document.createElement('div');
                 srcItem.className = 'source-item';
-                srcItem.innerHTML = `<strong>${src.domain}</strong>: ${src.content.substring(0, 150)}...`;
+                srcItem.innerHTML = `
+                    <div class="source-meta">
+                        <span class="source-domain">${src.domain}</span>
+                        <span class="source-file">${src.source}</span>
+                    </div>
+                    <div class="source-text">${src.content.substring(0, 150)}...</div>
+                `;
                 list.appendChild(srcItem);
             });
 

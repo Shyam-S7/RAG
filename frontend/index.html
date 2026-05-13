@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Assistant | Intelligent Chat</title>
+    <meta name="description" content="A production-grade RAG interface for intelligent document retrieval and generation.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <button class="new-chat-btn" id="new-chat-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                New Chat
+            </button>
+            <div class="chat-history" id="chat-history">
+                <!-- History items will be injected here -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">U</div>
+                    <span>Guest User</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="mobile-menu-btn" id="mobile-menu-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <h1 id="app-title">👉 RAG Assistant</h1>
+                <div class="header-actions">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Online</span>
+                </div>
+            </header>
+
+            <div class="chat-container" id="chat-container">
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="logo-large">RAG</div>
+                    <h2>How can I help you today?</h2>
+                    <p>Ask anything about your documents or start a new conversation.</p>
+                </div>
+                <!-- Messages will be injected here -->
+            </div>
+
+            <footer class="input-area">
+                <div class="input-wrapper">
+                    <textarea id="user-input" placeholder="Message RAG Assistant..." rows="1"></textarea>
+                    <button id="send-btn" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+                <p class="disclaimer">RAG Assistant can make mistakes. Verify important information.</p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Templates -->
+    <template id="message-template">
+        <div class="message">
+            <div class="message-content">
+                <div class="message-text"></div>
+                <div class="sources-container hidden">
+                    <button class="sources-toggle">Sources (0)</button>
+                    <div class="sources-list"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
